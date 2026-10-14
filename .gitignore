@@ -20,6 +20,7 @@ application-*-secret*.yml
 build/
 bin/
 out/
+!ansimon-connection/rag/out/
 target/
 dist/
 .gradle/
@@ -32,7 +33,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 *.jar
-!gradle/wrapper/gradle-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.jar
 *.log
 
 # ── IDE / OS ──

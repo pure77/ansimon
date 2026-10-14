@@ -1,0 +1,29 @@
+[
+  {
+    "document_id": "heat_illness_manual_v1",
+    "slug": "heat_illness_manual",
+    "version": 1,
+    "title": "대상자별 온열질환 예방 매뉴얼",
+    "organization": "질병관리청 (참고용 샘플 문서)",
+    "published_date": "2025-07",
+    "source_url": "https://www.kdca.go.kr/bbs/kdca/263/305240/download.do",
+    "target_audience_note": "전 국민 (대상자별 세부 건강수칙 포함)",
+    "target_audience_scope": [
+      "BLOOD_PRESSURE",
+      "CARDIOVASCULAR",
+      "CHILD",
+      "DIABETES",
+      "DISABLED",
+      "ELDERLY",
+      "EMERGENCY",
+      "GENERAL",
+      "OUTDOOR_WORKER",
+      "PREGNANT",
+      "RENAL"
+    ],
+    "file_path": "data/heat_illness_manual.pdf",
+    "chunk_count": 60,
+    "ingested_at": "2026-08-18T05:45:53.873450+00:00",
+    "active": true
+  }
+]
