@@ -1,0 +1,2 @@
+﻿date,region,heatwave_risk_score,heatwave_prediction,elderly_heat_illness_risk_score,illness_weather_estimation,historical_analog_rows
+2026-08-18,서울,0.067534,X,0.823778,historical_analog,159

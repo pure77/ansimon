@@ -1,0 +1,27 @@
+{
+  "_설명": "기본 시나리오 — HIGH · 서울시청 좌표 · 쉼터 추천됨 → 질문 3개",
+  "elderly": {
+    "id": 1,
+    "name": "김안심",
+    "phone": "",
+    "age": 78,
+    "healthNote": "고혈압, 거동 다소 불편",
+    "address": "서울특별시 중구 세종대로 110",
+    "regionCode": "1114000000",
+    "consentStatus": "AGREED"
+  },
+  "location": { "latitude": 37.5665, "longitude": 126.9780 },
+  "risk": {
+    "score": 0.825,
+    "level": "HIGH",
+    "generatedAt": "NOW",
+    "targetStartAt": "TODAY 13:00",
+    "targetEndAt": "TODAY 17:00",
+    "peakStartAt": "TODAY 14:00",
+    "peakEndAt": "TODAY 16:00",
+    "topFactors": ["독거", "고령", "체감온도 36도"],
+    "modelVersion": "xgb-heat-v1"
+  },
+  "weather": { "temperatureC": 36.2, "heatWarning": "폭염경보" },
+  "approvedBy": "demo-social-worker"
+}

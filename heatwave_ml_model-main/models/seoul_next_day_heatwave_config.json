@@ -1,0 +1,58 @@
+{
+  "window_days": 7,
+  "target": "폭염여부(O/X)",
+  "tuning_train_years": [
+    2019,
+    2023
+  ],
+  "validation_year": 2024,
+  "test_year": 2025,
+  "validation_metrics": {
+    "rows": 146,
+    "positive_rows": 35,
+    "threshold": 0.5374163389205933,
+    "accuracy": 0.8561643835616438,
+    "precision": 0.675,
+    "recall": 0.7714285714285715,
+    "f1": 0.72,
+    "roc_auc": 0.9142857142857143,
+    "pr_auc": 0.7679651830475936,
+    "confusion_matrix": [
+      [
+        98,
+        13
+      ],
+      [
+        8,
+        27
+      ]
+    ]
+  },
+  "test_metrics": {
+    "rows": 146,
+    "positive_rows": 31,
+    "threshold": 0.5374163389205933,
+    "accuracy": 0.8698630136986302,
+    "precision": 0.6304347826086957,
+    "recall": 0.9354838709677419,
+    "f1": 0.7532467532467533,
+    "roc_auc": 0.9573632538569425,
+    "pr_auc": 0.8349086858755972,
+    "confusion_matrix": [
+      [
+        98,
+        17
+      ],
+      [
+        2,
+        29
+      ]
+    ]
+  },
+  "production_model_trained_through": "2026-08-17",
+  "latest_forecast": {
+    "date": "2026-08-18",
+    "risk_score": 0.06753365695476532,
+    "prediction": "X"
+  }
+}

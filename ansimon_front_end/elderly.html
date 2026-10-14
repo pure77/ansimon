@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>안심온 · 노인 관리</title>
+
+<link rel="stylesheet" type="text/css"
+      href="https://cdn.jsdelivr.net/gh/fonts-archive/S-CoreDream/S-CoreDream.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap" />
+<link rel="stylesheet" href="./assets/theme.css" />
+</head>
+<body>
+<div class="shell">
+
+  <nav class="nav reveal" style="animation-delay:.02s">
+    <div class="logo">
+      <span class="m mascot" aria-hidden="true"><img src="./chr1.png" alt="" /></span>
+      <b>안심온</b>
+    </div>
+    <div class="tabs" role="tablist">
+      <a href="./index.html">통합 대시보드</a>
+      <a href="./elderly.html" aria-current="page">노인 관리</a>
+    </div>
+    <div class="nav-end">
+      <button class="round alert" aria-label="알림">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.6a6 6 0 1 0-12 0c0 6-2.2 7.4-2.2 7.4h16.4S18 14.6 18 8.6Z"/><path d="M13.7 19.4a2 2 0 0 1-3.4 0"/></svg>
+      </button>
+      <div class="who">
+        <span class="av">이수</span>
+        <div><b>이수진</b><span>관악구 사회복지과</span></div>
+      </div>
+    </div>
+  </nav>
+
+  <section class="card c12 reveal" style="animation-delay:.08s">
+    <div class="head">
+      <div>
+        <h2>노인 관리</h2>
+        <p id="count-label">관리 대상 노인을 등록·수정·삭제합니다.</p>
+      </div>
+      <div class="end">
+        <button class="pill-btn solid" id="btn-new" type="button">+ 노인 등록</button>
+      </div>
+    </div>
+
+    <div id="api-banner" class="banner warn" hidden>
+      <span>백엔드(<span id="api-base-label" class="mono"></span>)에 연결하지 못해 화면만 확인할 수 있는 샘플 목록을 보여줍니다. 서버를 켠 뒤 새로고침하세요.</span>
+    </div>
+
+    <div class="toolbar">
+      <div class="search">
+        <input type="search" id="q" placeholder="이름 · 전화번호로 화면에서 찾기" />
+      </div>
+      <div class="select-pill">
+        <select id="filter-consent">
+          <option value="">동의 상태 전체</option>
+          <option value="consented">동의</option>
+          <option value="not_consented">미동의</option>
+          <option value="withdrawn">철회</option>
+        </select>
+      </div>
+      <div class="select-pill">
+        <input type="text" id="filter-region" placeholder="행정구역 코드" style="font-family:var(--mono);font-size:11.5px;color:var(--ink-2);border:1px solid var(--rule);border-radius:999px;padding:8px 13px;background:rgba(255,255,255,.62);width:120px" />
+      </div>
+      <button class="pill-btn" id="btn-search" type="button">조회</button>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:170px">이름</th>
+            <th style="width:80px">나이</th>
+            <th style="width:150px">전화번호</th>
+            <th>주소</th>
+            <th style="width:110px">동의 상태</th>
+            <th style="width:140px">최근 수정</th>
+            <th style="width:150px">작업</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="7"><div class="loading-state">불러오는 중…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pager" id="pager" hidden></div>
+  </section>
+
+  <footer class="foot">
+    <span><b>안심온</b> · 팀 N.M.D.W.</span>
+    <span id="src">데이터 · —</span>
+  </footer>
+</div>
+
+<!-- ══ 등록 / 수정 모달 ══ -->
+<div class="modal" id="form-modal" role="dialog" aria-modal="true" aria-labelledby="form-title" hidden>
+  <article class="modal-card">
+    <header class="modal-head">
+      <div>
+        <span class="eyebrow" id="form-eyebrow">노인 관리</span>
+        <h2 id="form-title">노인 등록</h2>
+      </div>
+      <button class="modal-close" id="form-close" type="button" aria-label="닫기">×</button>
+    </header>
+
+    <div id="form-error" class="form-error" hidden style="margin-top:18px"></div>
+
+    <form id="elder-form" style="margin-top:18px">
+      <input type="hidden" id="f-id" />
+      <div class="field-row">
+        <div class="field">
+          <label for="f-name">이름 *</label>
+          <input id="f-name" required maxlength="100" placeholder="김안심" />
+        </div>
+        <div class="field">
+          <label for="f-phone">전화번호 *</label>
+          <input id="f-phone" required maxlength="128" placeholder="010-1234-5678" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-address">주소 *</label>
+        <input id="f-address" required maxlength="255" placeholder="서울특별시 종로구 세종대로 1" />
+        <p class="field-hint">주소는 서버에서 좌표·행정구역 코드로 자동 변환됩니다.</p>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="f-consent">자동전화 동의 상태 *</label>
+          <select id="f-consent" required>
+            <option value="consented">동의</option>
+            <option value="not_consented">미동의</option>
+            <option value="withdrawn">철회</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-birth">생년월일</label>
+          <input id="f-birth" type="date" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-health">기저질환 · 건강상태 메모</label>
+        <textarea id="f-health" maxlength="500" placeholder="고혈압, 당뇨"></textarea>
+      </div>
+    </form>
+
+    <div class="modal-actions">
+      <button class="pill-btn" id="form-cancel" type="button">취소</button>
+      <button class="pill-btn solid" id="form-submit" type="button">저장</button>
+    </div>
+  </article>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="./assets/api.js"></script>
+<script>
+const PAGE_SIZE = 20;
+let currentPage = 0;
+let totalPages = 1;
+let lastLoadedContent = [];
+let usingMock = false;
+
+const MOCK_ELDERS = [
+  { id: 10, displayName:"박○자", phone:"010-1111-2222", address:"서울특별시 관악구 은천로 41", regionCode:"11620", consentStatus:"consented", age:82, healthNote:"고혈압", updatedAt:"2026-08-18T01:00:00Z" },
+  { id: 11, displayName:"김○순", phone:"010-2222-3333", address:"서울특별시 관악구 신림로 12", regionCode:"11620", consentStatus:"consented", age:79, healthNote:"당뇨", updatedAt:"2026-08-17T22:10:00Z" },
+  { id: 12, displayName:"이○호", phone:"010-3333-4444", address:"서울특별시 관악구 봉천로 88", regionCode:"11620", consentStatus:"not_consented", age:85, healthNote:"", updatedAt:"2026-08-16T09:40:00Z" },
+  { id: 13, displayName:"최○남", phone:"010-4444-5555", address:"서울특별시 관악구 신림로 200", regionCode:"11620", consentStatus:"withdrawn", age:88, healthNote:"거동 불편", updatedAt:"2026-08-15T14:22:00Z" },
+];
+
+function fmtDate(iso){
+  if(!iso) return "—";
+  const d = new Date(iso);
+  if(isNaN(d)) return "—";
+  return d.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+}
+
+async function loadPage(page = 0){
+  currentPage = page;
+  $("#rows").innerHTML = `<tr><td colspan="7"><div class="loading-state">불러오는 중…</div></td></tr>`;
+  const consentStatus = $("#filter-consent").value;
+  const regionCode = $("#filter-region").value.trim();
+  const params = new URLSearchParams({ page: String(page), size: String(PAGE_SIZE), sort: "id,desc" });
+  if(consentStatus) params.set("consentStatus", consentStatus);
+  if(regionCode) params.set("regionCode", regionCode);
+
+  try{
+    const data = await api.get(`/api/v1/elderly?${params.toString()}`);
+    usingMock = false;
+    $("#api-banner").hidden = true;
+    $("#src").textContent = `데이터 · ${API_BASE}`;
+    lastLoadedContent = data.content || [];
+    totalPages = Math.max(1, data.totalPages || 1);
+    renderRows(lastLoadedContent);
+    renderPager(data.page ?? page, totalPages, data.totalElements ?? lastLoadedContent.length);
+  }catch(error){
+    console.warn("[안심온] 노인 목록 API 실패 → 샘플 데이터로 표시합니다:", error);
+    usingMock = true;
+    $("#api-banner").hidden = false;
+    $("#api-base-label").textContent = API_BASE;
+    $("#src").textContent = "데이터 · 샘플(백엔드 미연결)";
+    lastLoadedContent = MOCK_ELDERS;
+    totalPages = 1;
+    renderRows(lastLoadedContent);
+    renderPager(0, 1, lastLoadedContent.length);
+  }
+}
+
+function applyClientFilter(list){
+  const q = $("#q").value.trim().toLowerCase();
+  if(!q) return list;
+  return list.filter(e =>
+    String(e.displayName||"").toLowerCase().includes(q) ||
+    String(e.phone||"").toLowerCase().includes(q));
+}
+
+function renderRows(list){
+  const filtered = applyClientFilter(list);
+  $("#count-label").textContent = usingMock
+    ? `샘플 ${filtered.length}명 표시 중 · 실제 데이터는 백엔드 연결 후 확인하세요.`
+    : `총 ${filtered.length}명 표시 중`;
+  if(!filtered.length){
+    $("#rows").innerHTML = `<tr><td colspan="7"><div class="empty-state">등록된 노인이 없습니다.</div></td></tr>`;
+    return;
+  }
+  $("#rows").innerHTML = filtered.map(e => `
+    <tr data-id="${esc(e.id)}">
+      <td><a class="nm" href="./elderly-detail.html?id=${esc(e.id)}"><b>${esc(e.displayName)}</b><span>ID ${esc(e.id)}</span></a></td>
+      <td class="mono">${esc(e.age ?? "—")}</td>
+      <td class="mono">${esc(e.phone)}</td>
+      <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.address)}</td>
+      <td><span class="risk-chip ${String(e.consentStatus||"").toLowerCase()}">${esc(CONSENT_LABEL[e.consentStatus]||e.consentStatus)}</span></td>
+      <td class="mono" style="color:var(--ink-3);font-size:12px">${fmtDate(e.updatedAt)}</td>
+      <td>
+        <div class="row-actions">
+          <button class="icon-btn" type="button" data-action="edit" data-id="${esc(e.id)}" title="수정" aria-label="${esc(e.displayName)} 수정">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+          <button class="icon-btn danger" type="button" data-action="delete" data-id="${esc(e.id)}" title="삭제" aria-label="${esc(e.displayName)} 삭제">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`).join("");
+}
+
+function renderPager(page, total, totalElements){
+  const pager = $("#pager");
+  if(total <= 1){ pager.hidden = true; return; }
+  pager.hidden = false;
+  pager.innerHTML = `
+    <button class="pill-btn" id="pg-prev" type="button" ${page<=0?"disabled":""}>이전</button>
+    <span>${page+1} / ${total} 페이지 · 전체 ${totalElements}명</span>
+    <button class="pill-btn" id="pg-next" type="button" ${page>=total-1?"disabled":""}>다음</button>`;
+  $("#pg-prev")?.addEventListener("click", () => loadPage(page-1));
+  $("#pg-next")?.addEventListener("click", () => loadPage(page+1));
+}
+
+/* ── 등록/수정 모달 ── */
+function openForm(elder){
+  $("#form-error").hidden = true;
+  $("#elder-form").reset();
+  if(elder){
+    $("#form-eyebrow").textContent = "노인 관리 · 수정";
+    $("#form-title").textContent = `${elder.displayName} 정보 수정`;
+    $("#f-id").value = elder.id;
+    $("#f-name").value = elder.displayName || "";
+    $("#f-phone").value = elder.phone || "";
+    $("#f-address").value = elder.address || "";
+    $("#f-consent").value = elder.consentStatus || "consented";
+    $("#f-birth").value = "";
+    $("#f-health").value = elder.healthNote || "";
+  }else{
+    $("#form-eyebrow").textContent = "노인 관리 · 등록";
+    $("#form-title").textContent = "노인 등록";
+    $("#f-id").value = "";
+    $("#f-consent").value = "consented";
+  }
+  $("#form-modal").hidden = false;
+  document.body.classList.add("modal-open");
+  requestAnimationFrame(()=>$("#f-name").focus());
+}
+function closeForm(){
+  $("#form-modal").hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+async function submitForm(){
+  const id = $("#f-id").value;
+  const displayName = $("#f-name").value.trim();
+  const phone = $("#f-phone").value.trim();
+  const address = $("#f-address").value.trim();
+  const consentStatus = $("#f-consent").value;
+  const birthDate = $("#f-birth").value || undefined;
+  const healthNote = $("#f-health").value.trim() || undefined;
+
+  if(!displayName || !phone || !address){
+    $("#form-error").hidden = false;
+    $("#form-error").textContent = "이름, 전화번호, 주소는 필수입니다.";
+    return;
+  }
+
+  const btn = $("#form-submit");
+  btn.disabled = true; btn.textContent = "저장 중…";
+  try{
+    if(id){
+      await api.patch(`/api/v1/elderly/${id}`, { displayName, phone, address, consentStatus, birthDate, healthNote });
+      notify(`${displayName} 어르신 정보를 수정했습니다.`);
+    }else{
+      await api.post(`/api/v1/elderly`, { displayName, phone, address, consentStatus, birthDate, healthNote });
+      notify(`${displayName} 어르신을 등록했습니다.`);
+    }
+    closeForm();
+    loadPage(currentPage);
+  }catch(error){
+    $("#form-error").hidden = false;
+    $("#form-error").textContent = error.message || "저장에 실패했습니다.";
+  }finally{
+    btn.disabled = false; btn.textContent = "저장";
+  }
+}
+
+async function deleteElder(id, name){
+  if(!confirm(`${name || "해당"} 어르신 프로필을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) return;
+  try{
+    await api.del(`/api/v1/elderly/${id}`);
+    notify(`${name || ""} 어르신을 삭제했습니다.`);
+    loadPage(currentPage);
+  }catch(error){
+    const msg = error.status === 409
+      ? "안내계획·전화 이력이 남아 있어 삭제할 수 없습니다. 동의 철회로 관리해 주세요."
+      : (error.message || "삭제에 실패했습니다.");
+    notify(msg, { error: true });
+  }
+}
+
+$("#btn-new").addEventListener("click", () => openForm(null));
+$("#form-close").addEventListener("click", closeForm);
+$("#form-cancel").addEventListener("click", closeForm);
+$("#form-modal").addEventListener("click", (e) => { if(e.target === e.currentTarget) closeForm(); });
+$("#form-submit").addEventListener("click", submitForm);
+
+$("#rows").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-action]");
+  if(!btn) return;
+  const id = btn.dataset.id;
+  const row = lastLoadedContent.find(x => String(x.id) === String(id));
+  if(btn.dataset.action === "edit") openForm(row || { id });
+  if(btn.dataset.action === "delete") deleteElder(id, row?.displayName);
+});
+
+$("#btn-search").addEventListener("click", () => loadPage(0));
+$("#q").addEventListener("input", () => renderRows(lastLoadedContent));
+document.addEventListener("keydown", (e) => { if(e.key === "Escape" && !$("#form-modal").hidden) closeForm(); });
+
+loadPage(0);
+</script>
+</body>
+</html>

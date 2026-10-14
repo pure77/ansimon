@@ -1,0 +1,6 @@
+{
+  "threshold": 0.515061616897583,
+  "validation_year": 2024,
+  "selection_metric": "f1_with_min_recall",
+  "min_recall": 0.8
+}

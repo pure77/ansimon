@@ -1,0 +1,13 @@
+# 비밀값. 절대 올리지 않는다. .env.example 을 복사해서 쓴다.
+.env
+.env.*
+!.env.example
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 통화 전사(개인정보)와 실행 산출물
+voice/calls/
+out/*.json

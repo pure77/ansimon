@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>안심온 · 노인 상세</title>
+
+<link rel="stylesheet" type="text/css"
+      href="https://cdn.jsdelivr.net/gh/fonts-archive/S-CoreDream/S-CoreDream.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap" />
+<link rel="stylesheet" href="./assets/theme.css" />
+<style>
+  .obs-row{padding:16px 0;border-top:1px solid var(--rule-2)}
+  .obs-row:first-child{border-top:0}
+  .obs-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .obs-edit{display:grid;gap:10px;margin-top:10px;padding:14px;border-radius:14px;background:rgba(255,255,255,.5)}
+  .obs-edit .field-row{grid-template-columns:repeat(4,1fr)}
+  @media (max-width:760px){ .obs-edit .field-row{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width:420px){ .obs-edit .field-row{grid-template-columns:1fr} }
+  .plan-box{padding:15px;border-radius:14px;background:rgba(226,242,235,.5);margin-bottom:10px}
+  .plan-box h4{font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:6px}
+  .plan-box p{font-size:13.5px;line-height:1.7;color:var(--ink-1)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <nav class="nav reveal" style="animation-delay:.02s">
+    <div class="logo">
+      <span class="m mascot" aria-hidden="true"><img src="./chr1.png" alt="" /></span>
+      <b>안심온</b>
+    </div>
+    <div class="tabs" role="tablist">
+      <a href="./index.html">통합 대시보드</a>
+      <a href="./elderly.html" aria-current="page">노인 관리</a>
+    </div>
+    <div class="nav-end">
+      <a class="round" href="./elderly.html" aria-label="목록으로">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+      </a>
+      <div class="who">
+        <span class="av">이수</span>
+        <div><b>이수진</b><span>관악구 사회복지과</span></div>
+      </div>
+    </div>
+  </nav>
+
+  <div id="api-banner" class="banner warn" hidden>
+    <span>백엔드에 연결하지 못해 일부 항목을 샘플 데이터로 표시합니다.</span>
+  </div>
+
+  <div class="grid">
+    <!-- ══ 프로필 ══ -->
+    <section class="card c4 reveal" style="animation-delay:.06s">
+      <div class="head"><div><h2>프로필</h2><p>등록 정보 확인·수정</p></div></div>
+      <div class="modal-profile" style="margin:0 0 14px">
+        <span class="elder-av" id="p-avatar">—</span>
+        <div><b id="p-name">—</b><span id="p-age">—</span></div>
+      </div>
+      <dl class="modal-facts" style="margin-bottom:16px">
+        <div><dt>전화번호</dt><dd id="p-phone">—</dd></div>
+        <div><dt>동의 상태</dt><dd id="p-consent">—</dd></div>
+        <div><dt>주소</dt><dd id="p-address" style="grid-column:1/-1">—</dd></div>
+        <div><dt>행정구역 코드</dt><dd id="p-region">—</dd></div>
+        <div><dt>건강 메모</dt><dd id="p-health" style="grid-column:1/-1">—</dd></div>
+      </dl>
+      <div class="modal-actions" style="padding-top:0;justify-content:flex-start">
+        <button class="pill-btn solid" id="btn-edit" type="button">정보 수정</button>
+        <button class="pill-btn danger" id="btn-delete" type="button">프로필 삭제</button>
+      </div>
+    </section>
+
+    <!-- ══ 조치 방안 ══ -->
+    <section class="card c8 reveal" style="animation-delay:.12s">
+      <div class="head">
+        <div>
+          <h2>1차 요약 · 조치 방안</h2>
+          <p>통화 결과와 함께 저장된 대응 계획을 읽기 전용으로 보여줍니다.</p>
+        </div>
+        <div class="end">
+          <button class="pill-btn solid" id="btn-care-run" type="button">안심 돌봄 실행</button>
+        </div>
+      </div>
+      <div class="banner" id="plan-note">
+        <strong style="font-weight:600">안심 돌봄 실행</strong>을 누르면 LLM/RAG가 대응계획을 만들고 실제로 전화를 건 뒤 요약까지 저장합니다
+        (최대 2분).
+      </div>
+      <div class="banner" id="care-run-result" hidden></div>
+      <div id="plan-view">
+        <div class="empty-state" id="plan-empty">아직 통화가 없어 대응 계획이 만들어지지 않았습니다. 자동 통화를 실행하면 생성됩니다.</div>
+        <div class="plan-box" id="plan-guidance-box" hidden>
+          <h4>행동 안내</h4>
+          <p id="plan-guidance">—</p>
+        </div>
+        <div class="plan-box" id="plan-shelter-box" hidden>
+          <h4>쉼터 권고</h4>
+          <p id="plan-shelter">—</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 통화 기록 ══ -->
+    <section class="card c12 reveal" style="animation-delay:.18s">
+      <div class="head">
+        <div>
+          <h2>전화 내용 · 통화 기록</h2>
+          <p>답을 듣지 못한 항목은 <b style="font-weight:500;color:var(--ink-2)">확인 안 됨</b>으로 둡니다. 요약과 판정 항목을 바로 교정할 수 있습니다.</p>
+        </div>
+      </div>
+      <div id="obs-list"><div class="loading-state">불러오는 중…</div></div>
+    </section>
+  </div>
+
+  <footer class="foot">
+    <span><b>안심온</b> · 팀 N.M.D.W.</span>
+    <span id="src">데이터 · —</span>
+  </footer>
+</div>
+
+<!-- ══ 프로필 수정 모달 (elderly.html 과 동일 필드) ══ -->
+<div class="modal" id="form-modal" role="dialog" aria-modal="true" aria-labelledby="form-title" hidden>
+  <article class="modal-card">
+    <header class="modal-head">
+      <div><span class="eyebrow">노인 관리 · 수정</span><h2 id="form-title">정보 수정</h2></div>
+      <button class="modal-close" id="form-close" type="button" aria-label="닫기">×</button>
+    </header>
+    <div id="form-error" class="form-error" hidden style="margin-top:18px"></div>
+    <form id="elder-form" style="margin-top:18px">
+      <div class="field-row">
+        <div class="field"><label for="f-name">이름 *</label><input id="f-name" required maxlength="100" /></div>
+        <div class="field"><label for="f-phone">전화번호 *</label><input id="f-phone" required maxlength="128" /></div>
+      </div>
+      <div class="field"><label for="f-address">주소 *</label><input id="f-address" required maxlength="255" /></div>
+      <div class="field-row">
+        <div class="field">
+          <label for="f-consent">자동전화 동의 상태 *</label>
+          <select id="f-consent" required>
+            <option value="consented">동의</option>
+            <option value="not_consented">미동의</option>
+            <option value="withdrawn">철회</option>
+          </select>
+        </div>
+        <div class="field"><label for="f-birth">생년월일</label><input id="f-birth" type="date" /></div>
+      </div>
+      <div class="field"><label for="f-health">기저질환 · 건강상태 메모</label><textarea id="f-health" maxlength="500"></textarea></div>
+    </form>
+    <div class="modal-actions">
+      <button class="pill-btn" id="form-cancel" type="button">취소</button>
+      <button class="pill-btn solid" id="form-submit" type="button">저장</button>
+    </div>
+  </article>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="./assets/api.js"></script>
+<script>
+const elderlyId = new URLSearchParams(location.search).get("id");
+let elder = null;
+
+const MOCK_ELDER = {
+  id: elderlyId || 10, displayName:"박○자", phone:"010-1111-2222",
+  address:"서울특별시 관악구 은천로 41", regionCode:"11620", consentStatus:"consented",
+  age:82, healthNote:"고혈압, 어지럼증 이력", latitude:37.478, longitude:126.951,
+};
+
+if(!elderlyId){
+  document.body.innerHTML = '<div class="shell"><section class="card c12"><div class="empty-state">노인 ID가 없습니다. <a href="./elderly.html">목록으로 돌아가기</a></div></section></div>';
+  throw new Error("missing id");
+}
+
+function fmtDate(iso){
+  if(!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d) ? "—" : d.toLocaleString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+}
+
+/* ── 프로필 로드 ── */
+async function loadElder(){
+  try{
+    elder = await api.get(`/api/v1/elderly/${elderlyId}`);
+    $("#src").textContent = `데이터 · ${API_BASE}`;
+  }catch(error){
+    console.warn("[안심온] 노인 상세 API 실패 → 샘플로 표시합니다:", error);
+    $("#api-banner").hidden = false;
+    $("#src").textContent = "데이터 · 샘플(백엔드 미연결)";
+    elder = MOCK_ELDER;
+  }
+  renderProfile();
+}
+function renderProfile(){
+  $("#p-avatar").textContent = avatarText(elder.displayName);
+  $("#p-name").textContent = elder.displayName;
+  $("#p-age").textContent = `${elder.age ?? "—"}세`;
+  $("#p-phone").textContent = elder.phone || "—";
+  $("#p-consent").innerHTML = `<span class="risk-chip ${String(elder.consentStatus||"").toLowerCase()}">${esc(CONSENT_LABEL[elder.consentStatus]||elder.consentStatus)}</span>`;
+  $("#p-address").textContent = elder.address || "—";
+  $("#p-region").textContent = elder.regionCode || "—";
+  $("#p-health").textContent = elder.healthNote || "기록 없음";
+  document.title = `안심온 · ${elder.displayName} 상세`;
+}
+
+/* ── 프로필 수정/삭제 (elderly.html 과 동일 로직) ── */
+function openForm(){
+  $("#form-error").hidden = true;
+  $("#f-name").value = elder.displayName || "";
+  $("#f-phone").value = elder.phone || "";
+  $("#f-address").value = elder.address || "";
+  $("#f-consent").value = elder.consentStatus || "consented";
+  $("#f-birth").value = "";
+  $("#f-health").value = elder.healthNote || "";
+  $("#form-modal").hidden = false;
+  document.body.classList.add("modal-open");
+  requestAnimationFrame(()=>$("#f-name").focus());
+}
+function closeForm(){ $("#form-modal").hidden = true; document.body.classList.remove("modal-open"); }
+
+async function submitForm(){
+  const displayName = $("#f-name").value.trim();
+  const phone = $("#f-phone").value.trim();
+  const address = $("#f-address").value.trim();
+  const consentStatus = $("#f-consent").value;
+  const birthDate = $("#f-birth").value || undefined;
+  const healthNote = $("#f-health").value.trim() || undefined;
+  if(!displayName || !phone || !address){
+    $("#form-error").hidden = false; $("#form-error").textContent = "이름, 전화번호, 주소는 필수입니다.";
+    return;
+  }
+  const btn = $("#form-submit"); btn.disabled = true; btn.textContent = "저장 중…";
+  try{
+    elder = await api.patch(`/api/v1/elderly/${elderlyId}`, { displayName, phone, address, consentStatus, birthDate, healthNote });
+    notify("정보를 수정했습니다.");
+    closeForm(); renderProfile();
+  }catch(error){
+    $("#form-error").hidden = false; $("#form-error").textContent = error.message || "저장에 실패했습니다.";
+  }finally{ btn.disabled = false; btn.textContent = "저장"; }
+}
+async function deleteElder(){
+  if(!confirm(`${elder.displayName} 어르신 프로필을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) return;
+  try{
+    await api.del(`/api/v1/elderly/${elderlyId}`);
+    notify("삭제했습니다. 목록으로 이동합니다.");
+    setTimeout(()=>location.href = "./elderly.html", 700);
+  }catch(error){
+    const msg = error.status === 409
+      ? "안내계획·전화 이력이 남아 있어 삭제할 수 없습니다. 동의 철회로 관리해 주세요."
+      : (error.message || "삭제에 실패했습니다.");
+    notify(msg, { error: true });
+  }
+}
+$("#btn-edit").addEventListener("click", openForm);
+$("#btn-delete").addEventListener("click", deleteElder);
+$("#form-close").addEventListener("click", closeForm);
+$("#form-cancel").addEventListener("click", closeForm);
+$("#form-modal").addEventListener("click", (e)=>{ if(e.target===e.currentTarget) closeForm(); });
+$("#form-submit").addEventListener("click", submitForm);
+
+/* ── 통화 기록: 목록(요약 수정/삭제) ──
+   개별 결과 교정(PATCH)·삭제(DELETE)는 /api/v1/contact/observations/{id} 로 동작합니다. */
+let observations = [];
+async function loadObservations(){
+  const box = $("#obs-list");
+  try{
+    const data = await api.get(`/api/v1/contact/observations?elderlyId=${encodeURIComponent(elderlyId)}&page=0&size=20`);
+    observations = data.content || [];
+  }catch(error){
+    observations = [];
+    box.innerHTML = `<div class="empty-state">통화 기록을 불러오지 못했습니다. ${esc(error.message)}</div>`;
+    renderPlan();
+    return;
+  }
+  renderObservations();
+  adoptBackendPlan();
+}
+function renderObservations(){
+  const box = $("#obs-list");
+  if(!observations.length){
+    box.innerHTML = '<div class="empty-state">통화 기록이 없습니다.</div>';
+    return;
+  }
+  box.innerHTML = observations.map(o => `
+    <article class="obs-row" data-id="${esc(o.id)}">
+      <div class="obs-head">
+        <span class="badge-soft">${esc(CONTACT_LABEL[o.contactStatus]||o.contactStatus)}</span>
+        <span class="mono" style="font-size:11.5px;color:var(--ink-3)">${fmtDate(o.endedAt)}</span>
+        ${o.confidence ? `<span class="mono" style="font-size:11.5px;color:var(--ink-3)">신뢰도 ${Math.round(o.confidence*100)}%</span>` : ""}
+        <div class="row-actions" style="margin-left:auto">
+          <button class="pill-btn" type="button" data-action="obs-edit" data-id="${esc(o.id)}">요약 수정</button>
+          <button class="pill-btn danger" type="button" data-action="obs-delete" data-id="${esc(o.id)}">삭제</button>
+        </div>
+      </div>
+      <dl class="ans" style="margin-bottom:8px">
+        <div><dt>쉼터</dt><dd>${esc(TRISTATE_LABEL[o.shelterIntent]||o.shelterIntent)}</dd></div>
+        <div><dt>단독이동</dt><dd>${esc(TRISTATE_LABEL[o.canMoveAlone]||o.canMoveAlone)}</dd></div>
+        <div><dt>도움</dt><dd>${esc(TRISTATE_LABEL[o.helpNeeded]||o.helpNeeded)}</dd></div>
+        <div><dt>증상</dt><dd>${esc(TRISTATE_LABEL[o.symptomMentioned]||o.symptomMentioned)}</dd></div>
+      </dl>
+      <p class="sum" style="max-width:none">${esc(o.summary || "요약이 없습니다.")}</p>
+      ${o.actionGuidance ? `<div class="plan-box" style="margin-top:10px"><h4>이 통화의 조치 방안</h4><p>${esc(o.actionGuidance)}</p>${
+        o.shelterRecommendationText ? `<p style="margin-top:6px;color:var(--ink-2);font-size:12.5px">${esc(o.shelterRecommendationText)}</p>` : ""
+      }</div>` : ""}
+      <div class="obs-edit" id="obs-edit-${esc(o.id)}" hidden>
+        <div class="field"><label>전화내용 · 조치 요약</label><textarea id="obs-summary-${esc(o.id)}">${esc(o.summary||"")}</textarea></div>
+        <div class="field-row">
+          ${["shelterIntent","canMoveAlone","helpNeeded","symptomMentioned"].map(key => `
+            <div class="field"><label>${{shelterIntent:"쉼터",canMoveAlone:"단독이동",helpNeeded:"도움",symptomMentioned:"증상"}[key]}</label>
+              <select id="obs-${key}-${esc(o.id)}">
+                <option value="YES" ${o[key]==="YES"?"selected":""}>예</option>
+                <option value="NO" ${o[key]==="NO"?"selected":""}>아니오</option>
+                <option value="UNKNOWN" ${o[key]==="UNKNOWN"?"selected":""}>확인 안 됨</option>
+              </select>
+            </div>`).join("")}
+        </div>
+        <div class="modal-actions" style="padding-top:0;justify-content:flex-start">
+          <button class="pill-btn solid" type="button" data-action="obs-save" data-id="${esc(o.id)}">저장</button>
+          <button class="pill-btn" type="button" data-action="obs-cancel" data-id="${esc(o.id)}">취소</button>
+        </div>
+      </div>
+    </article>`).join("");
+}
+
+async function saveObservation(id){
+  const summary = $(`#obs-summary-${id}`).value.trim();
+  const shelterIntent = $(`#obs-shelterIntent-${id}`).value;
+  const canMoveAlone = $(`#obs-canMoveAlone-${id}`).value;
+  const helpNeeded = $(`#obs-helpNeeded-${id}`).value;
+  const symptomMentioned = $(`#obs-symptomMentioned-${id}`).value;
+  try{
+    const updated = await api.patch(`/api/v1/contact/observations/${id}`, { summary, shelterIntent, canMoveAlone, helpNeeded, symptomMentioned });
+    const idx = observations.findIndex(o => String(o.id) === String(id));
+    if(idx >= 0) observations[idx] = { ...observations[idx], ...updated };
+    notify("통화 결과를 수정했습니다.");
+    renderObservations();
+  }catch(error){
+    notify(error.message || "수정에 실패했습니다.", { error: true });
+  }
+}
+async function deleteObservation(id){
+  if(!confirm("이 통화 결과를 삭제할까요?")) return;
+  try{
+    await api.del(`/api/v1/contact/observations/${id}`);
+    observations = observations.filter(o => String(o.id) !== String(id));
+    notify("통화 결과를 삭제했습니다.");
+    renderObservations();
+  }catch(error){
+    notify(error.message || "삭제에 실패했습니다.", { error: true });
+  }
+}
+$("#obs-list").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-action]");
+  if(!btn) return;
+  const id = btn.dataset.id;
+  if(btn.dataset.action === "obs-edit") $(`#obs-edit-${id}`).hidden = false;
+  if(btn.dataset.action === "obs-cancel") $(`#obs-edit-${id}`).hidden = true;
+  if(btn.dataset.action === "obs-save") saveObservation(id);
+  if(btn.dataset.action === "obs-delete") deleteObservation(id);
+});
+
+/* ── 대응 계획: 통화 결과 콜백이 저장한 값을 읽기만 합니다 ── */
+let currentPlan = null;
+
+function adoptBackendPlan(){
+  const latest = observations.find(o => o.actionGuidance);
+  currentPlan = latest ? {
+    actionGuidance: latest.actionGuidance,
+    shelterRecommendationText: latest.shelterRecommendationText || "",
+  } : null;
+  renderPlan();
+}
+
+function renderPlan(){
+  const has = !!currentPlan;
+  $("#plan-empty").hidden = has;
+  $("#plan-guidance-box").hidden = !has;
+  $("#plan-shelter-box").hidden = !has;
+  if(has){
+    $("#plan-guidance").textContent = currentPlan.actionGuidance || "—";
+    $("#plan-shelter").textContent = currentPlan.shelterRecommendationText || "—";
+  }
+}
+renderPlan();
+/* ── 안심 돌봄 실행 (care-run) ──
+   POST /internal/v1/guidance/care-runs/{elderlyId}
+   대응계획 생성 → 예방 전화 → 요약 저장까지 동기로 기다립니다. 백엔드 타임아웃이 120초입니다. */
+const CARE_RUN_TIMEOUT_MS = 130000;
+const CARE_RUN_ERROR = {
+  GLOBAL_CONSENT_REQUIRED: "자동전화에 동의하지 않은 어르신입니다. 프로필에서 동의 상태를 확인하세요.",
+  GLOBAL_GUIDANCE_GENERATION_BLOCKED: "RAG 근거 검증에 실패해 대응계획을 만들지 못했습니다.",
+  GLOBAL_RESOURCE_NOT_FOUND: "위험도 예측이 없습니다. 대시보드에서 ML 위험도를 먼저 예측하세요.",
+  GLOBAL_EXTERNAL_SERVICE_TIMEOUT: "통화가 제한 시간 안에 끝나지 않았습니다.",
+  GLOBAL_EXTERNAL_SERVICE_CLIENT_ERROR: "커넥션 서버가 요청을 거부했습니다.",
+  GLOBAL_EXTERNAL_SERVICE_SERVER_ERROR: "커넥션 서버에 연결할 수 없습니다.",
+};
+
+async function runCareRun(){
+  if(elder?.consentStatus && elder.consentStatus !== "consented"){
+    notify(`${CONSENT_LABEL[elder.consentStatus]} 상태라 자동 통화를 걸 수 없습니다.`, { error: true });
+    return;
+  }
+  const btn = $("#btn-care-run");
+  const box = $("#care-run-result");
+  const startedAt = Date.now();
+  btn.disabled = true;
+  box.hidden = false; box.className = "banner";
+  const tick = setInterval(() => {
+    box.textContent = `안심 돌봄 실행 중 · ${Math.round((Date.now()-startedAt)/1000)}초 경과 — 전화가 끝날 때까지 기다립니다.`;
+  }, 1000);
+  box.textContent = "안심 돌봄 실행 중 · 0초 경과 — 전화가 끝날 때까지 기다립니다.";
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CARE_RUN_TIMEOUT_MS);
+  try{
+    const response = await fetch(`${API_BASE}/internal/v1/guidance/care-runs/${elderlyId}`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(()=>({}));
+    if(!response.ok || payload.success === false){
+      const code = payload.error?.code;
+      throw new Error(CARE_RUN_ERROR[code] || payload.error?.message || `HTTP ${response.status}`);
+    }
+    const data = payload.data ?? payload;
+    const seconds = Math.round((Date.now()-startedAt)/1000);
+    box.className = "banner";
+    box.textContent = data.answered
+      ? `통화 완료 · ${seconds}초 소요 · 통화 ID ${data.externalCallId ?? "—"} · 요약이 저장되었습니다.`
+      : `미응답 · ${seconds}초 소요 · 통화 ID ${data.externalCallId ?? "—"} · 직접 확인이 필요합니다.`;
+    notify(data.answered ? "통화를 마쳤습니다. 통화 기록을 새로 불러옵니다." : "전화를 받지 않으셨습니다.");
+    await loadObservations();
+  }catch(error){
+    const message = error.name === "AbortError"
+      ? "통화가 응답하지 않아 요청을 중단했습니다."
+      : (error instanceof TypeError ? "백엔드에 연결할 수 없습니다." : error.message);
+    box.className = "banner warn";
+    box.textContent = `실행 실패 · ${message}`;
+    notify(message, { error: true });
+  }finally{
+    clearInterval(tick); clearTimeout(timeout);
+    btn.disabled = false;
+  }
+}
+$("#btn-care-run").addEventListener("click", runCareRun);
+
+document.addEventListener("keydown", (e) => { if(e.key === "Escape" && !$("#form-modal").hidden) closeForm(); });
+
+loadElder();
+loadObservations();
+</script>
+</body>
+</html>

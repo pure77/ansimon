@@ -1,0 +1,43 @@
+# ── Secrets / sensitive config ──
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*credentials*.json
+*secret*.json
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+application-secret*.yml
+application-*-secret*.yml
+
+# ── Build / caches ──
+build/
+bin/
+out/
+target/
+dist/
+.gradle/
+.gradle-user-home/
+.worktrees/
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.log
+
+# ── IDE / OS ──
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

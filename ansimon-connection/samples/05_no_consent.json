@@ -1,0 +1,12 @@
+{
+  "_설명": "동의 없음 — 전화를 만들지 않고 403 CONSENT_REQUIRED 로 막히는지 확인",
+  "elderly": {
+    "id": 5,
+    "name": "정미동의",
+    "phone": "",
+    "age": 76,
+    "consentStatus": "REVOKED"
+  },
+  "location": { "latitude": 37.5665, "longitude": 126.9780 },
+  "risk": { "score": 0.9, "level": "HIGH" }
+}

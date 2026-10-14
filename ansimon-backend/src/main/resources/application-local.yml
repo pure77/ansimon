@@ -1,0 +1,53 @@
+﻿spring:
+  datasource:
+    url: ${MYSQL_URL}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      # Railway 공개 프록시(rlwy.net)는 유휴 TLS 연결을 끊으므로 유휴 커넥션을 유지하지 않는다
+      minimum-idle: 0
+      connection-timeout: 10000
+      validation-timeout: 3000
+      idle-timeout: 30000
+      max-lifetime: 120000
+      data-source-properties:
+        connectTimeout: 10000
+        socketTimeout: 60000
+        tcpKeepAlive: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/mysql
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+
+ansimon:
+  external:
+    kma:
+      base-url: ${KMA_BASE_URL:https://apis.data.go.kr}
+      api-key: ${KMA_API_KEY:}
+    shelter:
+      base-url: ${SHELTER_BASE_URL:https://apis.data.go.kr}
+      api-key: ${SHELTER_API_KEY:}
+    tmap:
+      base-url: ${TMAP_BASE_URL:https://apis.openapi.sk.com}
+      api-key: ${TMAP_API_KEY}
+    ml:
+      base-url: ${ML_API_BASE_URL:http://localhost:8100}
+    connection:
+      base-url: ${CONNECTION_BASE_URL:http://localhost:7000}
+      api-key: ${CONNECTION_API_KEY:}
+  connection:
+    web-client:
+      connection-timeout: ${CONNECTION_WEBCLIENT_CONNECTION_TIMEOUT:2s}
+      response-timeout: ${CONNECTION_WEBCLIENT_RESPONSE_TIMEOUT:120s}

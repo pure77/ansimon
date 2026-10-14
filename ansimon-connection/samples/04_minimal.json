@@ -1,0 +1,11 @@
+{
+  "_설명": "최소 입력 — 시간창이 없어 '더워지는 시간' 안내가 빠진다 (없는 값을 지어내지 않음)",
+  "elderly": {
+    "id": 4,
+    "name": "이간단",
+    "phone": "",
+    "consentStatus": "AGREED"
+  },
+  "location": { "latitude": 37.5665, "longitude": 126.9780 },
+  "risk": { "score": 82.5, "level": "HIGH" }
+}

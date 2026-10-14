@@ -1,0 +1,21 @@
+# 안심온 — 세 서비스 합본. 한 번만 설치하면 전부 돈다.
+#   pip install -r requirements.txt
+
+# 연결 계층 (HTTP 클라이언트 + 서버)
+aiohttp>=3.9.0
+python-dotenv>=1.0.0
+
+# RAG + 쉼터 (rag/)
+pypdf>=6.0.0
+scikit-learn>=1.4.0
+pydantic>=2.6.0
+requests>=2.31.0
+pandas>=2.2.0
+openpyxl>=3.1.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+httpx>=0.27.0
+
+# 전화 (voice/)
+clawops[agent,openai]>=0.40.0
+openai>=1.30.0

@@ -1,0 +1,27 @@
+{
+  "_설명": "CRITICAL — 응급 안내가 맨 앞에 붙고 증상 질문이 추가되어 질문 4개",
+  "elderly": {
+    "id": 2,
+    "name": "박온열",
+    "phone": "",
+    "age": 84,
+    "healthNote": "당뇨, 심혈관 질환, 독거",
+    "address": "서울특별시 종로구 종로 1",
+    "regionCode": "1111000000",
+    "consentStatus": "AGREED"
+  },
+  "location": { "latitude": 37.5701, "longitude": 126.9820 },
+  "risk": {
+    "score": 96.0,
+    "level": "CRITICAL",
+    "generatedAt": "NOW",
+    "targetStartAt": "TODAY 12:00",
+    "targetEndAt": "TODAY 18:00",
+    "peakStartAt": "TODAY 14:00",
+    "peakEndAt": "TODAY 16:00",
+    "topFactors": ["독거", "초고령", "만성질환", "체감온도 39도"],
+    "modelVersion": "xgb-heat-v1"
+  },
+  "weather": { "temperatureC": 39.1, "heatWarning": "폭염경보" },
+  "approvedBy": "demo-social-worker"
+}

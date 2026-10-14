@@ -1,0 +1,27 @@
+.gradle/
+.gradle-user-home/
+build/
+out/
+bin/
+scratchpad/
+
+# 로컬 JDK 경로 등 머신별 Gradle 설정
+gradle.properties
+
+*.class
+*.log
+
+.env
+.env.*
+!.env.example
+
+.idea/
+*.iml
+
+.DS_Store
+Thumbs.db
+
+
+/docs/
+/.worktrees/
+/.superpowers/

@@ -1,0 +1,33 @@
+{
+  "tuning_train_years": [
+    2019,
+    2020,
+    2021,
+    2022,
+    2023
+  ],
+  "validation_year": 2024,
+  "trials": 16,
+  "search_stage": "refinement",
+  "min_recall": 0.8,
+  "threshold": 0.515061616897583,
+  "validation_metrics": {
+    "precision": 0.12239583333333333,
+    "recall": 0.8,
+    "f1": 0.21230942970073402
+  },
+  "model_params": {
+    "learning_rate": 0.17774797776157814,
+    "max_depth": 3,
+    "min_child_weight": 3.18723652804912,
+    "subsample": 0.7434414820821628,
+    "colsample_bytree": 0.7660491490698933,
+    "gamma": 2.603362012357689,
+    "reg_alpha": 0.0012021050876357836,
+    "reg_lambda": 8.986981424899001,
+    "scale_pos_weight": 35.83530201759696,
+    "max_delta_step": 3,
+    "max_bin": 128,
+    "n_estimators": 142
+  }
+}
