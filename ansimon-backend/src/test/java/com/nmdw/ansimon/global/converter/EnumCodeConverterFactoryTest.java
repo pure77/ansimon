@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import com.nmdw.ansimon.global.security.SecurityConfig;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = EnumCodeConverterFactoryTest.TestController.class)
-@Import(EnumCodeConverterFactoryTest.TestController.class)
+@Import({EnumCodeConverterFactoryTest.TestController.class, SecurityConfig.class})
 class EnumCodeConverterFactoryTest {
 
     private final EnumCodeConverterFactory factory = new EnumCodeConverterFactory();

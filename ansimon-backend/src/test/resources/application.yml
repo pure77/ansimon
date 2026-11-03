@@ -17,3 +17,9 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration/mysql
+
+ansimon:
+  internal:
+    api-keys:
+      - test-internal-key-current-0000000000
+      - test-internal-key-previous-000000000

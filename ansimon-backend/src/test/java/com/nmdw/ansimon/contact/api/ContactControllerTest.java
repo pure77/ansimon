@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import com.nmdw.ansimon.global.security.SecurityConfig;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -25,8 +26,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ContactController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, SecurityConfig.class})
 class ContactControllerTest {
+
+    private static final String INTERNAL_AUTHORIZATION = "Bearer test-internal-key-current-0000000000";
 
     private static final String ANSWERED_OUTCOME = """
             {"elderlyId":1,"externalCallId":"call-abc-123",
@@ -52,6 +55,7 @@ class ContactControllerTest {
                 Instant.parse("2026-08-19T02:30:00Z")));
 
         mockMvc.perform(post("/internal/v1/contact/results")
+                        .header("Authorization", INTERNAL_AUTHORIZATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(ANSWERED_OUTCOME))
                 .andExpect(status().isCreated())
@@ -65,6 +69,7 @@ class ContactControllerTest {
     @Test
     void rejectsAnOutcomeMissingTheExternalCallId() throws Exception {
         mockMvc.perform(post("/internal/v1/contact/results")
+                        .header("Authorization", INTERNAL_AUTHORIZATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(ANSWERED_OUTCOME.replace("\"externalCallId\":\"call-abc-123\"",
                                 "\"externalCallId\":\"\"")))
@@ -75,6 +80,7 @@ class ContactControllerTest {
     @Test
     void rejectsAnOutcomeWithoutAPlan() throws Exception {
         mockMvc.perform(post("/internal/v1/contact/results")
+                        .header("Authorization", INTERNAL_AUTHORIZATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                         {"elderlyId":1,"externalCallId":"call-abc-123",
@@ -89,6 +95,7 @@ class ContactControllerTest {
         when(contactService.registerCallOutcome(any())).thenThrow(new BusinessException(ErrorCode.CONFLICT));
 
         mockMvc.perform(post("/internal/v1/contact/results")
+                        .header("Authorization", INTERNAL_AUTHORIZATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(ANSWERED_OUTCOME))
                 .andExpect(status().isConflict())
