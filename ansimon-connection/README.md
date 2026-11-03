@@ -91,7 +91,8 @@
 | `422 GUIDANCE_GENERATION_BLOCKED` | 근거검증 실패 → **전화 안 감**. `issues` 확인 |
 | `502 RAG_UNAVAILABLE` / `PHONE_UNAVAILABLE` | 하위 서비스 미기동 |
 
-그 외: `GET /v1/diagnostics` (세 계층·키·백엔드 주소 상태), `GET /health`,
+그 외: `GET /v1/diagnostics` (세 계층·키·백엔드 주소 상태 — `Authorization: Bearer $CONNECTION_API_KEY` 필요),
+`GET /health` (인증 없이 쓰는 상태 확인용),
 `POST /internal/v1/contact-jobs/{id}/observation` (전화 모듈 전용 콜백 — 백엔드는 쓰지 않는다).
 
 ---
