@@ -570,6 +570,19 @@ async def _():
             raise AssertionError("토큰 없이 전송을 시도했다")
 
 
+@at("백엔드 주소는 있는데 토큰이 없으면 전화를 걸기 전에 막는다")
+async def _():
+    called = []
+    with env(ANSIMON_BACKEND_BASE_URL="http://127.0.0.1:9", ANSIMON_BACKEND_TOKEN="  "):
+        with fake_backends():
+            phone_client.dispatch = lambda j: called.append(j)
+            try:
+                await orchestrator.run(payload()); raise AssertionError("Blocked 가 나야 한다")
+            except orchestrator.Blocked as e:
+                assert e.result["code"] == "BACKEND_TOKEN_MISSING" and e.result["result"] is None
+    assert not called, "토큰이 없는데 전화를 걸었다"
+
+
 if __name__ == "__main__":
     for line in PASS:
         print(f"  통과  {line}")
