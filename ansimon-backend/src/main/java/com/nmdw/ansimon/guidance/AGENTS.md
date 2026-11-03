@@ -22,4 +22,4 @@ guidance/
 - 쉼터 후보 검색(TMAP 포함)은 외부 안심온 커넥션의 LLM/RAG 서버가 처리합니다. 이 패키지는 노인·위치·최신 위험도 스냅샷을 조립해 전달합니다.
 - 자동전화 동의 상태를 요청에 포함하며, 커넥션은 동의가 없거나 철회된 대상자의 실행을 403으로 차단합니다.
 - 통화 내용·조치 내용 요약은 이 패키지가 만들지 않습니다. 외부 서버가 전화를 마친 뒤 `contact` 패키지의 `POST /internal/v1/contact/results`로 대응계획과 함께 보내옵니다.
-- `POST /internal/v1/guidance/care-runs/{elderlyId}`가 대응계획 생성부터 전화·요약까지 동기로 트리거합니다.
+- `POST /api/v1/guidance/care-runs/{elderlyId}`가 대응계획 생성부터 전화·요약까지 동기로 트리거합니다.

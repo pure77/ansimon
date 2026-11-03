@@ -794,7 +794,7 @@
         observations: (params) =>
           `/api/v1/contact/observations?${params.toString()}`,
         careRun: (elderlyId) =>
-          `/internal/v1/guidance/care-runs/${encodeURIComponent(elderlyId)}`,
+          `/api/v1/guidance/care-runs/${encodeURIComponent(elderlyId)}`,
       };
 
       /* care-run 은 전화가 끝날 때까지 동기로 기다립니다.
@@ -1006,7 +1006,7 @@
       });
 
       /* ═══ 안심 돌봄 실행 (care-run) ═══
-   POST /internal/v1/guidance/care-runs/{elderlyId} 하나로
+   POST /api/v1/guidance/care-runs/{elderlyId} 하나로
    대응계획 생성 → 예방 전화 → 통화 요약이 모두 실행됩니다.
    실제 전화를 걸고 끝날 때까지 기다리므로 한 건에 수십 초가 걸립니다.
    저장은 커넥션 서버가 보내는 결과 콜백이 별도로 처리합니다. */

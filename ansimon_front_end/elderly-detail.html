@@ -383,7 +383,7 @@ function renderPlan(){
 }
 renderPlan();
 /* ── 안심 돌봄 실행 (care-run) ──
-   POST /internal/v1/guidance/care-runs/{elderlyId}
+   POST /api/v1/guidance/care-runs/{elderlyId}
    대응계획 생성 → 예방 전화 → 요약 저장까지 동기로 기다립니다. 백엔드 타임아웃이 120초입니다. */
 const CARE_RUN_TIMEOUT_MS = 130000;
 const CARE_RUN_ERROR = {
@@ -413,7 +413,7 @@ async function runCareRun(){
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), CARE_RUN_TIMEOUT_MS);
   try{
-    const response = await fetch(`${API_BASE}/internal/v1/guidance/care-runs/${elderlyId}`, {
+    const response = await fetch(`${API_BASE}/api/v1/guidance/care-runs/${elderlyId}`, {
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
       signal: controller.signal,
