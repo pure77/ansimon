@@ -558,6 +558,18 @@ async def _():
             assert (await c.get("/health")).status == 200
 
 
+@at("백엔드 주소는 있는데 토큰이 없으면 보내지 않고 예외를 올린다")
+async def _():
+    # 127.0.0.1:9 (discard) — 실수로 전송을 시도해도 즉시 연결 거부로 끝난다
+    with env(ANSIMON_BACKEND_BASE_URL="http://127.0.0.1:9", ANSIMON_BACKEND_TOKEN=None):
+        try:
+            await backend_client.post_result({"x": 1})
+        except RuntimeError as e:
+            assert "ANSIMON_BACKEND_TOKEN" in str(e), e
+        else:
+            raise AssertionError("토큰 없이 전송을 시도했다")
+
+
 if __name__ == "__main__":
     for line in PASS:
         print(f"  통과  {line}")
