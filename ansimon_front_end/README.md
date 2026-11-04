@@ -22,18 +22,26 @@ python -m http.server 5500
 
 그다음 `http://localhost:5500/index.html`을 엽니다.
 
-백엔드 주소는 기본값이 `http://localhost:8080`이며, 다르면 쿼리스트링으로 바꿉니다.
+백엔드 주소는 기본값이 `http://localhost:8080`이며, 다르면 쿼리스트링으로 바꿉니다(`?api=`는 `localhost`/`127.0.0.1`에서만 동작하고, 그 외 호스트에서는 무시됩니다).
 
 ```
 http://localhost:5500/index.html?api=http://localhost:8099
 ```
 
-배포 시에는 `window.ANSIMON_API_BASE`를 주입해도 됩니다.
+운영 배포 시에는 `assets/config.js`에 백엔드 주소를 넣습니다(`window.ANSIMON_API_BASE`).
+
+### 로그인
+
+모든 화면은 관리자 로그인이 필요합니다. 토큰이 없으면 `login.html`로 이동하고, 로그인하면 원래 화면으로 돌아옵니다.
+토큰은 `sessionStorage`에 보관되어 탭을 닫으면 사라집니다. 첫 관리자 계정은 백엔드 환경변수
+`ADMIN_BOOTSTRAP_LOGIN_ID` / `ADMIN_BOOTSTRAP_PASSWORD`로 만듭니다(계정이 하나도 없을 때 한 번).
+배포 시 `assets/config.js`의 백엔드 주소를 설정하세요. 운영 호스트에서는 `?api=`가 무시됩니다.
 
 ## 연결된 API
 
 | 기능 | 엔드포인트 |
 |---|---|
+| 로그인 | `POST /api/v1/auth/login` (토큰 없이 호출, 나머지는 모두 `Authorization: Bearer`) |
 | 노인 목록 | `GET /api/v1/elderly?page&size&sort&regionCode&consentStatus` |
 | 노인 등록 | `POST /api/v1/elderly` |
 | 노인 상세 | `GET /api/v1/elderly/{id}` |

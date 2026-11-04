@@ -23,3 +23,6 @@ ansimon:
     api-keys:
       - test-internal-key-current-0000000000
       - test-internal-key-previous-000000000
+  auth:
+    jwt-secret: test-jwt-secret-0000000000000000000000
+    access-token-ttl: 1h

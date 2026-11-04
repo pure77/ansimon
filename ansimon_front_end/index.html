@@ -782,6 +782,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <script src="./assets/config.js"></script>
     <script src="./assets/api.js"></script>
     <script>
       /* 공통 헬퍼(assets/api.js)의 라벨에 없는 진행 중 상태를 보강합니다. */
@@ -1036,10 +1037,15 @@
               headers: {
                 Accept: "application/json",
                 "Content-Type": "application/json",
+                ...authHeaders(),
               },
               signal: controller.signal,
             }
           );
+          if (response.status === 401) {
+            redirectToLogin();
+            throw new Error("로그인이 필요합니다.");
+          }
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || payload.success === false) {
             const code = payload.error?.code;
