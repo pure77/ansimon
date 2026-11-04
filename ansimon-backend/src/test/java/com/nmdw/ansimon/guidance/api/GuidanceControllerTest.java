@@ -29,7 +29,7 @@ class GuidanceControllerTest {
     private GuidanceService guidanceService;
 
     @Test
-    void careRunIsReachableFromTheAdminFrontendWithoutCredentials() throws Exception {
+    void careRunIsReachableWithAdminToken() throws Exception {
         when(guidanceService.triggerCareRun(7L)).thenReturn(new CareRunTriggerResponse(7L, "CA_1", true));
 
         mockMvc.perform(post("/api/v1/guidance/care-runs/7").with(admin()))

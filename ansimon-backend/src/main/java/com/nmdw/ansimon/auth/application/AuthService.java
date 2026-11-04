@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -19,6 +20,9 @@ import java.util.Optional;
  */
 @Service
 public class AuthService {
+
+    private static final int BCRYPT_MAX_PASSWORD_BYTES = 72;
+    private static final String TIMING_EQUALIZER_PASSWORD = "ansimon-timing-equalizer";
 
     private final AdminAccountRepository adminAccountRepository;
     private final AccessTokenIssuer accessTokenIssuer;
@@ -31,11 +35,16 @@ public class AuthService {
         this.adminAccountRepository = adminAccountRepository;
         this.accessTokenIssuer = accessTokenIssuer;
         this.passwordEncoder = passwordEncoder;
-        this.dummyHash = passwordEncoder.encode("ansimon-timing-equalizer");
+        this.dummyHash = passwordEncoder.encode(TIMING_EQUALIZER_PASSWORD);
     }
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
+        if (request.password().getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_PASSWORD_BYTES) {
+            // bcrypt 는 72바이트를 넘으면 예외를 던져 500 이 된다. 같은 비용의 더미 비교만 하고 같은 401 로 거절한다.
+            passwordEncoder.matches(TIMING_EQUALIZER_PASSWORD, dummyHash);
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+        }
         Optional<AdminAccount> account = adminAccountRepository.findByLoginId(request.loginId().trim());
         String hash = account.map(AdminAccount::getPasswordHash).orElse(dummyHash);
         boolean matches = passwordEncoder.matches(request.password(), hash);
