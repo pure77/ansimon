@@ -92,4 +92,8 @@ async def diagnostics() -> dict:
     async with aiohttp.ClientSession() as s:
         async with s.get(f"{BASE}/v1/diagnostics", headers=_auth_header(),
                          timeout=aiohttp.ClientTimeout(total=15)) as r:
-            return await r.json(content_type=None)
+            body = await r.json(content_type=None)
+            if r.status != 200:
+                # 키 불일치(401/503) 같은 응답을 "RAG 정상" 으로 보이게 두지 않는다
+                raise RagError(f"RAG /v1/diagnostics {r.status}: {str(body)[:200]}")
+            return body

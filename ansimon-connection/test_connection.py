@@ -772,6 +772,53 @@ async def _():
     assert seen["auth"] == f"Bearer {RAG_KEY}", seen
 
 
+def _with_fake_rag(routes, run):
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+
+    async def go():
+        fake = web.Application()
+        fake.add_routes(routes)
+        real_base = rag_client.BASE
+        async with TestServer(fake) as srv:
+            rag_client.BASE = str(srv.make_url("")).rstrip("/")
+            try:
+                with env(RAG_API_KEY=RAG_KEY):
+                    return await run()
+            finally:
+                rag_client.BASE = real_base
+    return go()
+
+
+@at("rag_client: diagnostics 는 Bearer RAG_API_KEY 를 붙이고 200 이면 본문을 돌려준다")
+async def _():
+    from aiohttp import web
+    seen = {}
+
+    async def diag(request):
+        seen["auth"] = request.headers.get("Authorization")
+        return web.json_response({"willUseMock": False, "keys": {}})
+
+    body = await _with_fake_rag([web.get("/v1/diagnostics", diag)], rag_client.diagnostics)
+    assert seen["auth"] == f"Bearer {RAG_KEY}", seen
+    assert body == {"willUseMock": False, "keys": {}}, body
+
+
+@at("rag_client: diagnostics 가 401 을 받으면 정상으로 보지 않고 RagError")
+async def _():
+    from aiohttp import web
+
+    async def diag(_):
+        return web.json_response({"success": False, "error": {"code": "UNAUTHORIZED"}}, status=401)
+
+    try:
+        await _with_fake_rag([web.get("/v1/diagnostics", diag)], rag_client.diagnostics)
+    except rag_client.RagError as e:
+        assert "401" in str(e), e
+    else:
+        raise AssertionError("401 인데 진단이 성공으로 처리됐다")
+
+
 if __name__ == "__main__":
     for line in PASS:
         print(f"  통과  {line}")
