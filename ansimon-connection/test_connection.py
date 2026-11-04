@@ -19,6 +19,8 @@ from datetime import datetime, timedelta
 os.environ.setdefault("ALAN_API_KEY", "")          # 질문 생성은 템플릿 경로로
 os.environ.setdefault("CALL_RESULT_TIMEOUT_SEC", "3")
 os.environ.pop("ANSIMON_BACKEND_BASE_URL", None)   # 백엔드 전송은 출력만
+# 전화 걸기 전 검사(32자 이상)를 통과하는 기본 콜백 토큰. 토큰이 없는 경로는 env(...) 로 따로 검증한다.
+os.environ.setdefault("ANSIMON_BACKEND_TOKEN", "callback-key-000000000000000000000000")
 
 import backend_client
 import contracts
@@ -770,6 +772,31 @@ async def _():
         finally:
             rag_client.BASE = real_base
     assert seen["auth"] == f"Bearer {RAG_KEY}", seen
+
+
+@at("백엔드 주소가 없어도 토큰이 32자 미만이면 전화를 걸기 전에 막는다")
+async def _():
+    called = []
+    with env(ANSIMON_BACKEND_BASE_URL=None, ANSIMON_BACKEND_TOKEN="short-token"):
+        os.environ.pop("ANSIMON_BACKEND_BASE_URL", None)
+        with fake_backends():
+            phone_client.dispatch = lambda j: called.append(j)
+            try:
+                await orchestrator.run(payload()); raise AssertionError("Blocked 가 나야 한다")
+            except orchestrator.Blocked as e:
+                assert e.result["code"] == "BACKEND_TOKEN_MISSING" and e.result["result"] is None
+    assert not called, "토큰이 짧은데 전화를 걸었다"
+
+
+@at("백엔드 전송: 토큰이 32자 미만이면 보내지 않고 예외를 올린다")
+async def _():
+    with env(ANSIMON_BACKEND_BASE_URL="http://127.0.0.1:9", ANSIMON_BACKEND_TOKEN="short-token"):
+        try:
+            await backend_client.post_result({"x": 1})
+        except RuntimeError as e:
+            assert "ANSIMON_BACKEND_TOKEN" in str(e), e
+        else:
+            raise AssertionError("짧은 토큰으로 전송을 시도했다")
 
 
 def _with_fake_rag(routes, run):
