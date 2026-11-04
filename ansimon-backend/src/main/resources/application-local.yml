@@ -54,3 +54,10 @@ ansimon:
   internal:
     # 연결 서버의 ANSIMON_BACKEND_TOKEN 과 같은 값. 쉼표로 여러 개를 주면 키 교체 중 이전 키도 받는다.
     api-keys: ${INTERNAL_API_KEYS:local-dev-internal-key-change-me-0000}
+  auth:
+    # 로컬 전용 기본값. 운영은 ANSIMON_JWT_SECRET 필수 (openssl rand -hex 32).
+    jwt-secret: ${ANSIMON_JWT_SECRET:local-dev-jwt-secret-change-me-00000000}
+    access-token-ttl: ${ANSIMON_ACCESS_TOKEN_TTL:1h}
+    bootstrap-admin:
+      login-id: ${ADMIN_BOOTSTRAP_LOGIN_ID:}
+      password: ${ADMIN_BOOTSTRAP_PASSWORD:}

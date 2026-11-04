@@ -51,3 +51,9 @@ ansimon:
       response-timeout: ${CONNECTION_WEBCLIENT_RESPONSE_TIMEOUT:120s}
   internal:
     api-keys: ${INTERNAL_API_KEYS}
+  auth:
+    jwt-secret: ${ANSIMON_JWT_SECRET}
+    access-token-ttl: ${ANSIMON_ACCESS_TOKEN_TTL:1h}
+    bootstrap-admin:
+      login-id: ${ADMIN_BOOTSTRAP_LOGIN_ID:}
+      password: ${ADMIN_BOOTSTRAP_PASSWORD:}

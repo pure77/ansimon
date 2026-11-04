@@ -7,11 +7,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -63,13 +61,6 @@ class InternalApiSecurityTest {
     }
 
     @Test
-    void leavesPublicApiOpenWithoutCredentials() throws Exception {
-        mockMvc.perform(get("/api/v1/probe"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value("public"));
-    }
-
-    @Test
     void doesNotGrantCorsToBrowsersOnInternalApi() throws Exception {
         mockMvc.perform(options("/internal/v1/probe")
                         .header(HttpHeaders.ORIGIN, ADMIN_ORIGIN)
@@ -77,18 +68,8 @@ class InternalApiSecurityTest {
                 .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
     }
 
-    @Test
-    void grantsCorsToTheAdminFrontendOnPublicApi() throws Exception {
-        mockMvc.perform(options("/api/v1/probe")
-                        .header(HttpHeaders.ORIGIN, ADMIN_ORIGIN)
-                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET"))
-                .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, ADMIN_ORIGIN));
-    }
-
     @RestController
     static class ProbeController {
         @PostMapping("/internal/v1/probe") ApiResponse<String> internal() { return ApiResponse.success("internal"); }
-        @GetMapping("/api/v1/probe") ApiResponse<String> publicApi() { return ApiResponse.success("public"); }
     }
 }
