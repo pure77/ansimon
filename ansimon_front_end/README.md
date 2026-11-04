@@ -39,8 +39,8 @@ http://localhost:5500/index.html?api=http://localhost:8099
 | 노인 상세 | `GET /api/v1/elderly/{id}` |
 | 노인 수정 | `PATCH /api/v1/elderly/{id}` |
 | 노인 삭제 | `DELETE /api/v1/elderly/{id}` (409면 "동의 철회로 관리" 안내) |
-| ML 위험도 | `POST /internal/v1/risk/forecast` |
-| 안심 돌봄 실행 | `POST /internal/v1/guidance/care-runs/{elderlyId}` |
+| ML 위험도 | `POST /internal/v1/risk/forecast` (서버 간 호출 전용, 브라우저에서 호출 불가 — API 키 필요) |
+| 안심 돌봄 실행 | `POST /api/v1/guidance/care-runs/{elderlyId}` |
 | 통화결과 교정 | `PATCH /api/v1/contact/observations/{id}` |
 | 통화결과 삭제 | `DELETE /api/v1/contact/observations/{id}` |
 

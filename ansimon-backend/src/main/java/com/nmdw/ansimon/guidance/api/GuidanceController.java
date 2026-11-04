@@ -13,11 +13,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 특정 노인의 대응계획 생성, 예방 전화, 통화 요약을 안심온 커넥션에 요청하는 내부 API입니다.
+ * 특정 노인의 대응계획 생성, 예방 전화, 통화 요약을 안심온 커넥션에 요청하는 API입니다.
  */
-@Tag(name = "안심 돌봄 실행 (내부)", description = "노인 정보와 최신 위험도로 커넥션의 전체 care-run을 실행합니다.")
+@Tag(name = "안심 돌봄 실행", description = "노인 정보와 최신 위험도로 커넥션의 전체 care-run을 실행합니다.")
 @RestController
-@RequestMapping("/internal/v1/guidance")
+@RequestMapping("/api/v1/guidance")
 public class GuidanceController {
 
     private final GuidanceService guidanceService;

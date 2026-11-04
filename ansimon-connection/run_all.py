@@ -56,7 +56,8 @@ def main() -> int:
 
         print(f"\n  RAG   http://localhost:{RAG_PORT}/docs\n"
               f"  전화  http://localhost:{PHONE_PORT}/health\n"
-              f"  연결  http://localhost:{CONN_PORT}/v1/diagnostics   ← 백엔드는 여기로\n"
+              f"  연결  http://localhost:{CONN_PORT}/v1/diagnostics   ← 백엔드는 여기로 (Authorization: Bearer $CONNECTION_API_KEY 필요)\n"
+              f"        인증 없는 상태 확인은 http://localhost:{CONN_PORT}/health\n"
               f"\nCtrl+C 로 전부 종료. 데모: python run_demo.py --file 01_high_shelter.json\n",
               flush=True)
 

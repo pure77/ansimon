@@ -13,11 +13,14 @@
     GET  /v1/diagnostics                                 세 계층이 다 살아 있는지
     GET  /health
 
+인증: /health 외에는 Authorization: Bearer 필수 — /v1/** 은 CONNECTION_API_KEY, /internal/** 은 ANSIMON_BACKEND_TOKEN.
+
 응답은 세 저장소 공통 포맷 {success, data, error} 를 따른다.
 """
 from __future__ import annotations
 
 import asyncio
+import hmac
 import os
 from pathlib import Path
 
@@ -37,6 +40,9 @@ import rag_client
 
 PORT = int(os.getenv("CONNECTION_PORT", "7000"))
 
+# 인증 없이 열어 두는 경로. 나머지는 전부 Bearer 키가 맞아야 한다.
+PUBLIC_PATHS = {"/health"}
+
 
 def ok(data, status: int = 200) -> web.Response:
     return web.json_response({"success": True, "data": data, "error": None}, status=status)
@@ -46,6 +52,33 @@ def fail(code: str, message: str, status: int, **extra) -> web.Response:
     return web.json_response(
         {"success": False, "data": extra or None, "error": {"code": code, "message": message}},
         status=status)
+
+
+def _expected_token(path: str) -> str:
+    """경로별로 받아들일 키. 요청마다 읽어 키 교체가 재시작 없이 반영되게 한다.
+
+    /internal/** 은 전화 모듈 콜백이다. 전화 모듈은 콜백 주소가 백엔드든 여기든
+    ANSIMON_BACKEND_TOKEN 을 붙이므로 같은 키로 검증한다. /v1/** 은 백엔드가
+    CONNECTION_API_KEY 로 부른다.
+    """
+    name = "ANSIMON_BACKEND_TOKEN" if path.startswith("/internal/") else "CONNECTION_API_KEY"
+    return (os.getenv(name) or "").strip()
+
+
+@web.middleware
+async def require_bearer(request: web.Request, handler):
+    if request.path in PUBLIC_PATHS:
+        return await handler(request)
+    expected = _expected_token(request.path)
+    if not expected:
+        # 키를 안 넣었다고 문을 열어두지 않는다
+        return fail("AUTH_NOT_CONFIGURED", "서버 인증 키가 설정되지 않았습니다.", 503)
+    header = request.headers.get("Authorization", "")
+    presented = header[len("Bearer "):].strip() if header.startswith("Bearer ") else ""
+    # compare_digest: 응답 시간으로 키를 한 글자씩 맞혀보는 공격을 막는다
+    if not presented or not hmac.compare_digest(presented.encode(), expected.encode()):
+        return fail("UNAUTHORIZED", "인증이 필요합니다.", 401)
+    return await handler(request)
 
 
 async def care_runs(request: web.Request) -> web.Response:
@@ -121,7 +154,7 @@ async def diagnostics(_: web.Request) -> web.Response:
 
 
 def app() -> web.Application:
-    a = web.Application()
+    a = web.Application(middlewares=[require_bearer])
     a.add_routes([
         web.post("/v1/care-runs", care_runs),
         web.post("/internal/v1/contact-jobs/{contact_job_id}/observation", observation),

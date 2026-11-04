@@ -44,8 +44,10 @@ ansimon:
       base-url: ${PHONE_API_BASE_URL}
     connection:
       base-url: ${CONNECTION_BASE_URL}
-      api-key: ${CONNECTION_API_KEY:}
+      api-key: ${CONNECTION_API_KEY}
   connection:
     web-client:
       connection-timeout: ${CONNECTION_WEBCLIENT_CONNECTION_TIMEOUT:2s}
       response-timeout: ${CONNECTION_WEBCLIENT_RESPONSE_TIMEOUT:120s}
+  internal:
+    api-keys: ${INTERNAL_API_KEYS}

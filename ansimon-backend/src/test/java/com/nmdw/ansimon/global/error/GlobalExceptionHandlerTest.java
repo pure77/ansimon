@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import com.nmdw.ansimon.global.security.SecurityConfig;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = GlobalExceptionHandlerTest.TestController.class)
-@Import(GlobalExceptionHandlerTest.TestController.class)
+@Import({GlobalExceptionHandlerTest.TestController.class, SecurityConfig.class})
 class GlobalExceptionHandlerTest {
 
     @Autowired

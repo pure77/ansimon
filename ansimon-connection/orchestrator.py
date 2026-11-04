@@ -139,6 +139,10 @@ async def run(payload: dict) -> dict:
                                      "to_number": phone_client.mask(req["phone"])}}
 
     # --- 4. 발신 + 결과 대기 ------------------------------------------------
+    # 통화가 끝난 뒤에야 토큰 누락을 알게 되면 결과를 잃는다. 전화 걸기 전에 막는다.
+    if backend_client.base_url() and not (os.getenv("ANSIMON_BACKEND_TOKEN") or "").strip():
+        raise Blocked(_blocked("ANSIMON_BACKEND_TOKEN 이 비어 있어 통화 결과를 백엔드로 보낼 수 없으므로 "
+                               "전화를 걸지 않았습니다.", "BACKEND_TOKEN_MISSING", warnings=warnings))
     loop = asyncio.get_running_loop()
     fut: asyncio.Future = loop.create_future()
     PENDING[job_id] = fut

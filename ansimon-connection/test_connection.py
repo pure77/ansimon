@@ -484,6 +484,105 @@ def _():
     assert "TODAY" not in json.dumps(p, ensure_ascii=False)
 
 
+@contextlib.contextmanager
+def env(**values):
+    saved = dict(os.environ)
+    for k, v in values.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
+
+
+async def _auth_client():
+    from aiohttp.test_utils import TestClient, TestServer
+    import server
+    return TestClient(TestServer(server.app()))
+
+
+def bearer(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}
+
+
+@at("연결 서버: 백엔드가 부르는 /v1/** 는 CONNECTION_API_KEY 로만 통과한다")
+async def _():
+    with env(CONNECTION_API_KEY="conn-key-0000000000000000000000000000",
+             ANSIMON_BACKEND_TOKEN="callback-key-000000000000000000000000"):
+        async with await _auth_client() as c:
+            assert (await c.get("/health")).status == 200
+            assert (await c.post("/v1/care-runs", data="x")).status == 401
+            assert (await c.post("/v1/care-runs", data="x", headers=bearer("wrong"))).status == 401
+            r = await c.post("/v1/care-runs", data="x",
+                             headers={"Authorization": "Basic conn-key-0000000000000000000000000000"})
+            assert r.status == 401
+            r = await c.post("/v1/care-runs", data="x",
+                             headers=bearer("callback-key-000000000000000000000000"))
+            assert r.status == 401, "콜백 토큰으로는 /v1 을 못 부른다"
+            # 인증은 통과하고 본문 검증에서 막힌다 → 전화를 걸지 않는다
+            r = await c.post("/v1/care-runs", data="x",
+                             headers=bearer("conn-key-0000000000000000000000000000"))
+            assert r.status == 400, r.status
+            assert (await r.json())["error"]["code"] == "BAD_REQUEST"
+
+
+@at("연결 서버: 전화 모듈 콜백 /internal/** 은 ANSIMON_BACKEND_TOKEN 으로만 통과한다")
+async def _():
+    with env(CONNECTION_API_KEY="conn-key-0000000000000000000000000000",
+             ANSIMON_BACKEND_TOKEN="callback-key-000000000000000000000000"):
+        async with await _auth_client() as c:
+            path = "/internal/v1/contact-jobs/1/observation"
+            r = await c.post(path, data="x")
+            assert r.status == 401
+            assert (await r.json())["error"]["code"] == "UNAUTHORIZED"
+            r = await c.post(path, data="x", headers=bearer("conn-key-0000000000000000000000000000"))
+            assert r.status == 401
+            r = await c.post(path, data="x", headers=bearer("callback-key-000000000000000000000000"))
+            assert r.status == 400, r.status
+
+
+@at("연결 서버: 키가 설정되지 않으면 열어두지 않고 503 으로 막는다")
+async def _():
+    with env(CONNECTION_API_KEY=None, ANSIMON_BACKEND_TOKEN=None):
+        async with await _auth_client() as c:
+            # server import 시 load_dotenv 가 키를 다시 채울 수 있으므로 import 후에 지운다
+            os.environ.pop("CONNECTION_API_KEY", None)
+            os.environ.pop("ANSIMON_BACKEND_TOKEN", None)
+            r = await c.post("/v1/care-runs", data="x", headers=bearer("anything"))
+            assert r.status == 503
+            assert (await r.json())["error"]["code"] == "AUTH_NOT_CONFIGURED"
+            assert (await c.get("/health")).status == 200
+
+
+@at("백엔드 주소는 있는데 토큰이 없으면 보내지 않고 예외를 올린다")
+async def _():
+    # 127.0.0.1:9 (discard) — 실수로 전송을 시도해도 즉시 연결 거부로 끝난다
+    with env(ANSIMON_BACKEND_BASE_URL="http://127.0.0.1:9", ANSIMON_BACKEND_TOKEN=None):
+        try:
+            await backend_client.post_result({"x": 1})
+        except RuntimeError as e:
+            assert "ANSIMON_BACKEND_TOKEN" in str(e), e
+        else:
+            raise AssertionError("토큰 없이 전송을 시도했다")
+
+
+@at("백엔드 주소는 있는데 토큰이 없으면 전화를 걸기 전에 막는다")
+async def _():
+    called = []
+    with env(ANSIMON_BACKEND_BASE_URL="http://127.0.0.1:9", ANSIMON_BACKEND_TOKEN="  "):
+        with fake_backends():
+            phone_client.dispatch = lambda j: called.append(j)
+            try:
+                await orchestrator.run(payload()); raise AssertionError("Blocked 가 나야 한다")
+            except orchestrator.Blocked as e:
+                assert e.result["code"] == "BACKEND_TOKEN_MISSING" and e.result["result"] is None
+    assert not called, "토큰이 없는데 전화를 걸었다"
+
+
 if __name__ == "__main__":
     for line in PASS:
         print(f"  통과  {line}")
