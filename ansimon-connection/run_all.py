@@ -54,8 +54,8 @@ def main() -> int:
             procs.append((name, subprocess.Popen(cmd, cwd=cwd)))
             time.sleep(1.5)          # 포트가 열릴 시간. 뒤 서비스가 앞을 헬스체크하지 않으므로 이걸로 충분하다
 
-        print(f"\n  RAG   http://localhost:{RAG_PORT}/docs\n"
-              f"  전화  http://localhost:{PHONE_PORT}/health\n"
+        print(f"\n  RAG   http://localhost:{RAG_PORT}/docs   (API 호출은 Authorization: Bearer $RAG_API_KEY 필요)\n"
+              f"  전화  http://localhost:{PHONE_PORT}/health   (발신은 Authorization: Bearer $PHONE_API_KEY 필요)\n"
               f"  연결  http://localhost:{CONN_PORT}/v1/diagnostics   ← 백엔드는 여기로 (Authorization: Bearer $CONNECTION_API_KEY 필요)\n"
               f"        인증 없는 상태 확인은 http://localhost:{CONN_PORT}/health\n"
               f"\nCtrl+C 로 전부 종료. 데모: python run_demo.py --file 01_high_shelter.json\n",

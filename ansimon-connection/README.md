@@ -95,6 +95,19 @@
 `GET /health` (인증 없이 쓰는 상태 확인용),
 `POST /internal/v1/contact-jobs/{id}/observation` (전화 모듈 전용 콜백 — 백엔드는 쓰지 않는다).
 
+### 서비스 간 인증
+
+| 호출 | 헤더 | 받는 쪽이 비교하는 값 |
+|---|---|---|
+| 백엔드 → 연결 `/v1/**` | `Bearer $CONNECTION_API_KEY` | `CONNECTION_API_KEY` |
+| 전화 → 연결 `/internal/**` | `Bearer $ANSIMON_BACKEND_TOKEN` | `ANSIMON_BACKEND_TOKEN` |
+| 연결 → 전화 `/internal/v1/calls` | `Bearer $PHONE_API_KEY` | `PHONE_API_KEY` |
+| 연결 → RAG `/v1/**` | `Bearer $RAG_API_KEY` | `RAG_API_KEY` |
+
+키가 없거나 32자 미만이면 받는 쪽은 503 `AUTH_NOT_CONFIGURED`로 닫히고, 보내는 쪽은 요청을 보내지 않는다.
+`/health`는 어디서나 공개다. 전화 모듈은 `callback_url`이 허용 출처(`PHONE_CALLBACK_ALLOWED_ORIGINS` 외)가 아니면
+전화를 걸지 않고 400 `CALLBACK_NOT_ALLOWED`를 돌려준다.
+
 ---
 
 ## 지역 규칙
