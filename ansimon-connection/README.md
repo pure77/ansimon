@@ -104,7 +104,7 @@
 | 연결 → 전화 `/internal/v1/calls` | `Bearer $PHONE_API_KEY` | `PHONE_API_KEY` |
 | 연결 → RAG `/v1/**` | `Bearer $RAG_API_KEY` | `RAG_API_KEY` |
 
-키가 없거나 32자 미만이면 받는 쪽은 503 `AUTH_NOT_CONFIGURED`로 닫히고, 보내는 쪽은 요청을 보내지 않는다.
+키가 없거나 32자 미만이면 받는 쪽은 503 `AUTH_NOT_CONFIGURED`로 닫힌다. 연결 서버가 보내는 쪽(→ 전화·RAG)은 키가 없으면 요청 자체를 보내지 않는다.
 `/health`는 어디서나 공개다. 전화 모듈은 `callback_url`이 허용 출처(`PHONE_CALLBACK_ALLOWED_ORIGINS` 외)가 아니면
 전화를 걸지 않고 400 `CALLBACK_NOT_ALLOWED`를 돌려준다.
 
