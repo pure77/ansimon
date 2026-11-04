@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import os
+from urllib.parse import urlsplit
 
 from aiohttp import web
 
@@ -62,6 +63,30 @@ async def require_bearer(request: web.Request, handler):
     return await handler(request)
 
 
+def _clean(value: str | None) -> str:
+    """.env 값에 인라인 주석·공백이 섞여도 비교가 깨지지 않게 한다 (orchestrator._env 와 같은 규칙)."""
+    return (value or "").split("#")[0].strip()
+
+
+def _origin(url: str) -> str:
+    """scheme://host:port 만 남긴다. userinfo(@) 가 섞인 주소는 netloc 이 달라져 일치하지 않는다."""
+    parts = urlsplit(url.strip())
+    return f"{parts.scheme}://{parts.netloc}".lower()
+
+
+def allowed_callback_origins() -> set[str]:
+    """결과(+콜백 토큰)를 보내도 되는 곳. 요청마다 읽어 .env 변경이 재시작 없이 반영된다.
+
+    연결 서버가 job 에 싣는 기본 주소(CONNECTION_CALLBACK_URL, 없으면 localhost:CONNECTION_PORT)와
+    report.py 의 폴백(ANSIMON_BACKEND_BASE_URL)은 자동으로 들어간다.
+    """
+    urls = [u for u in _clean(os.getenv("PHONE_CALLBACK_ALLOWED_ORIGINS")).split(",")]
+    urls.append(_clean(os.getenv("CONNECTION_CALLBACK_URL"))
+                or f"http://localhost:{_clean(os.getenv('CONNECTION_PORT')) or '7000'}")
+    urls.append(_clean(os.getenv("ANSIMON_BACKEND_BASE_URL")))
+    return {_origin(u) for u in urls if u.strip()}
+
+
 async def run(job: dict, to: str) -> None:
     try:
         await main(job, to)
@@ -74,7 +99,17 @@ async def run(job: dict, to: str) -> None:
 
 async def calls(request: web.Request) -> web.Response:
     try:
-        job = check(await request.json())
+        body = await request.json()
+    except ValueError as e:
+        raise web.HTTPBadRequest(reason=str(e))
+
+    callback = body.get("callback_url") if isinstance(body, dict) else None
+    if callback and _origin(callback) not in allowed_callback_origins():
+        # 결과와 함께 콜백 토큰이 그 주소로 나간다. 모르는 곳이면 전화도 걸지 않는다.
+        return fail("CALLBACK_NOT_ALLOWED", "허용되지 않은 callback_url 입니다.", 400)
+
+    try:
+        job = check(body)
         facts(job)          # 안내할 내용이 없으면 전화를 걸기 전에 되돌린다
     except (ValueError, TypeError, AttributeError) as e:
         raise web.HTTPBadRequest(reason=str(e))

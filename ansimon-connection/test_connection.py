@@ -693,6 +693,48 @@ async def _():
     assert seen["auth"] == f"Bearer {PHONE_KEY}", seen
 
 
+@at("전화 모듈: 허용 목록에 없는 callback_url 이면 전화를 걸지 않고 400 CALLBACK_NOT_ALLOWED")
+async def _():
+    started = []
+    with env(PHONE_API_KEY=PHONE_KEY, CONNECTION_CALLBACK_URL="http://localhost:7000",
+             ANSIMON_BACKEND_BASE_URL=None, PHONE_CALLBACK_ALLOWED_ORIGINS=None):
+        async with await _voice_client(started) as c:
+            os.environ.pop("ANSIMON_BACKEND_BASE_URL", None)
+            os.environ.pop("PHONE_CALLBACK_ALLOWED_ORIGINS", None)
+            for evil in ("https://evil.example/steal",
+                         "http://localhost:7000.evil.example",   # 접미사 붙이기
+                         "http://localhost:7000@evil.example",   # userinfo 위장
+                         "http://localhost:7001"):               # 포트 다름
+                r = await c.post("/internal/v1/calls", headers=bearer(PHONE_KEY),
+                                 json={"contact_job_id": 1, "callback_url": evil})
+                assert r.status == 400, (evil, r.status)
+                assert (await r.json())["error"]["code"] == "CALLBACK_NOT_ALLOWED", evil
+    assert not started
+
+
+@at("전화 모듈: 허용된 출처(경로·대소문자 무관)면 발신을 접수한다")
+async def _():
+    import copy
+    started = []
+    with env(PHONE_API_KEY=PHONE_KEY, CONNECTION_CALLBACK_URL="http://localhost:7000",
+             ANSIMON_BACKEND_BASE_URL="https://api.ansimon.example/",
+             PHONE_CALLBACK_ALLOWED_ORIGINS="http://conn.railway.internal:7000, "):
+        async with await _voice_client(started) as c:
+            job = copy.deepcopy(sys.modules["job"].DEMO_JOB)
+            job["to_number"] = "01000000000"
+            for i, cb in enumerate(("http://localhost:7000/", "HTTPS://API.ansimon.example",
+                                    "http://conn.railway.internal:7000/x", None), start=1):
+                job["contact_job_id"] = 9000 + i
+                if cb is None:
+                    job.pop("callback_url", None)   # 없으면 report 가 env 로 떨어진다 → 허용
+                else:
+                    job["callback_url"] = cb
+                r = await c.post("/internal/v1/calls", headers=bearer(PHONE_KEY), json=job)
+                assert r.status == 202, (cb, r.status, await r.text())
+            await asyncio.sleep(0)   # create_task 로 띄운 가짜 run 이 돌 시간
+    assert [jid for jid, _ in started] == [9001, 9002, 9003, 9004], started
+
+
 if __name__ == "__main__":
     for line in PASS:
         print(f"  통과  {line}")
