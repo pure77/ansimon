@@ -30,10 +30,17 @@ http://localhost:5500/index.html?api=http://localhost:8099
 
 배포 시에는 `window.ANSIMON_API_BASE`를 주입해도 됩니다.
 
+### 로그인
+
+모든 화면은 관리자 로그인이 필요합니다. 토큰이 없으면 `login.html`로 이동하고, 로그인하면 원래 화면으로 돌아옵니다.
+토큰은 `sessionStorage`에 보관되어 탭을 닫으면 사라집니다. 첫 관리자 계정은 백엔드 환경변수
+`ADMIN_BOOTSTRAP_LOGIN_ID` / `ADMIN_BOOTSTRAP_PASSWORD`로 만듭니다(계정이 하나도 없을 때 한 번).
+
 ## 연결된 API
 
 | 기능 | 엔드포인트 |
 |---|---|
+| 로그인 | `POST /api/v1/auth/login` (토큰 없이 호출, 나머지는 모두 `Authorization: Bearer`) |
 | 노인 목록 | `GET /api/v1/elderly?page&size&sort&regionCode&consentStatus` |
 | 노인 등록 | `POST /api/v1/elderly` |
 | 노인 상세 | `GET /api/v1/elderly/{id}` |

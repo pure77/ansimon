@@ -415,9 +415,10 @@ async function runCareRun(){
   try{
     const response = await fetch(`${API_BASE}/api/v1/guidance/care-runs/${elderlyId}`, {
       method: "POST",
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      headers: { Accept: "application/json", "Content-Type": "application/json", ...authHeaders() },
       signal: controller.signal,
     });
+    if (response.status === 401) { redirectToLogin(); throw new Error("로그인이 필요합니다."); }
     const payload = await response.json().catch(()=>({}));
     if(!response.ok || payload.success === false){
       const code = payload.error?.code;

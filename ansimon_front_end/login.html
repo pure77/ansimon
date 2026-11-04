@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>안심온 · 관리자 로그인</title>
+  <link rel="stylesheet" href="./assets/theme.css" />
+  <style>
+    .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+    .login-card { width: 100%; max-width: 360px; display: grid; gap: 12px; }
+    .login-card input { width: 100%; }
+    .login-error { min-height: 1.2em; color: var(--danger, #c0392b); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main class="login-wrap">
+    <form class="card login-card" id="login-form" novalidate>
+      <h1>안심온 관리자</h1>
+      <label>아이디 <input id="login-id" name="loginId" autocomplete="username" required maxlength="50" /></label>
+      <label>비밀번호 <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128" /></label>
+      <p class="login-error" id="login-error" role="alert"></p>
+      <button class="pill-btn solid" type="submit" id="login-submit">로그인</button>
+    </form>
+  </main>
+  <div id="toast"></div>
+<script src="./assets/api.js"></script>
+<script>
+  clearToken();   // 만료된 토큰이 로그인 요청에 붙어 401 이 나는 것을 막는다
+
+  function safeNext() {
+    const next = new URLSearchParams(location.search).get("next") || "";
+    return /^[a-z0-9-]+\.html(\?[^#]*)?$/i.test(next) ? next : "index.html";
+  }
+
+  $("#login-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const loginId = $("#login-id").value.trim();
+    const password = $("#password").value;
+    if (!loginId || !password) { $("#login-error").textContent = "아이디와 비밀번호를 입력하세요."; return; }
+    $("#login-submit").disabled = true;
+    $("#login-error").textContent = "";
+    try {
+      const data = await api.post("/api/v1/auth/login", { loginId, password });
+      setToken(data.accessToken);
+      location.href = safeNext();
+    } catch (err) {
+      $("#login-error").textContent = err.code === "AUTH_INVALID_CREDENTIALS"
+        ? "아이디 또는 비밀번호가 올바르지 않습니다."
+        : `로그인할 수 없습니다 (${err.message}).`;
+    } finally {
+      $("#login-submit").disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

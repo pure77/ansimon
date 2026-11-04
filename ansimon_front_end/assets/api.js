@@ -7,6 +7,25 @@ const API_BASE = String(
   window.ANSIMON_API_BASE || new URLSearchParams(location.search).get("api") || "http://localhost:8080"
 ).replace(/\/$/, "");
 
+/* ── 관리자 토큰 ──
+   sessionStorage: 탭을 닫으면 사라진다. 공용 PC 에 로그인이 남지 않게 localStorage 를 쓰지 않는다. */
+const TOKEN_KEY = "ansimon.accessToken";
+const IS_LOGIN_PAGE = /(^|\/)login\.html$/.test(location.pathname);
+
+function getToken() { try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; } }
+function setToken(token) { try { sessionStorage.setItem(TOKEN_KEY, token); } catch {} }
+function clearToken() { try { sessionStorage.removeItem(TOKEN_KEY); } catch {} }
+function authHeaders() { const t = getToken(); return t ? { Authorization: `Bearer ${t}` } : {}; }
+
+/* 다른 사이트로 튕기는 오픈 리다이렉트를 막기 위해, 돌아올 곳은 같은 폴더의 .html 만 허용한다. */
+function redirectToLogin() {
+  clearToken();
+  const here = location.pathname.split("/").pop() + location.search;
+  location.href = `login.html?next=${encodeURIComponent(here)}`;
+}
+
+if (!IS_LOGIN_PAGE && !getToken()) redirectToLogin();
+
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
@@ -19,10 +38,15 @@ async function apiRequest(path, { method = "GET", body } = {}) {
     method,
     headers: {
       Accept: "application/json",
+      ...authHeaders(),
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+  if (response.status === 401 && !IS_LOGIN_PAGE) {
+    redirectToLogin();
+    throw Object.assign(new Error("로그인이 필요합니다."), { status: 401 });
+  }
   if (response.status === 204) return null;
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload.success === false) {
@@ -64,3 +88,22 @@ const CONTACT_LABEL = {
 };
 
 function avatarText(name) { return String(name || "—").replace(/○/g, "").slice(0, 2); }
+
+/* ── 로그아웃 (nav 오른쪽) ── */
+document.addEventListener("DOMContentLoaded", () => {
+  if (IS_LOGIN_PAGE) return;
+  let navEnd = $(".nav-end");
+  if (!navEnd) {
+    const nav = $("nav.nav");
+    if (!nav) return;
+    navEnd = document.createElement("div");
+    navEnd.className = "nav-end";
+    nav.appendChild(navEnd);
+  }
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "pill-btn";
+  button.textContent = "로그아웃";
+  button.addEventListener("click", () => { clearToken(); location.href = "login.html"; });
+  navEnd.appendChild(button);
+});

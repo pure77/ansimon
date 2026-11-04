@@ -1036,10 +1036,15 @@
               headers: {
                 Accept: "application/json",
                 "Content-Type": "application/json",
+                ...authHeaders(),
               },
               signal: controller.signal,
             }
           );
+          if (response.status === 401) {
+            redirectToLogin();
+            throw new Error("로그인이 필요합니다.");
+          }
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || payload.success === false) {
             const code = payload.error?.code;
