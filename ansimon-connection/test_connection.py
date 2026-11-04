@@ -592,6 +592,107 @@ async def _():
     assert not called, "토큰이 없는데 전화를 걸었다"
 
 
+PHONE_KEY = "phone-key-0000000000000000000000000000"
+
+
+def _voice_server():
+    """voice/server.py 를 'voice_server' 이름으로 한 번만 읽는다 — 연결 서버 server.py 와 이름이 겹친다."""
+    import importlib.util
+    if "voice_server" in sys.modules:
+        return sys.modules["voice_server"]
+    voice_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "voice")
+    if voice_dir not in sys.path:
+        sys.path.append(voice_dir)   # 맨 뒤에 둔다. 앞에 두면 `import server` 가 전화 모듈을 집는다
+    spec = importlib.util.spec_from_file_location("voice_server", os.path.join(voice_dir, "server.py"))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["voice_server"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+async def _voice_client(started=None):
+    """전화 모듈 테스트 클라이언트. 실제 발신(run)은 기록만 하는 가짜로 바꾼다."""
+    from aiohttp.test_utils import TestClient, TestServer
+    vs = _voice_server()
+
+    async def fake_run(job, to):
+        if started is not None:
+            started.append((job["contact_job_id"], to))
+        vs.INFLIGHT.discard(job["contact_job_id"])
+
+    vs.run = fake_run
+    return TestClient(TestServer(vs.app()))
+
+
+@at("전화 모듈: /internal/v1/calls 는 PHONE_API_KEY 가 맞아야만 통과하고, 아니면 전화를 걸지 않는다")
+async def _():
+    started = []
+    with env(PHONE_API_KEY=PHONE_KEY):
+        async with await _voice_client(started) as c:
+            assert (await c.get("/health")).status == 200
+            r = await c.post("/internal/v1/calls", json={"contact_job_id": 1})
+            assert r.status == 401, r.status
+            assert (await r.json())["error"]["code"] == "UNAUTHORIZED"
+            r = await c.post("/internal/v1/calls", json={},
+                             headers=bearer("wrong-key-000000000000000000000000000"))
+            assert r.status == 401
+            r = await c.post("/internal/v1/calls", json={},
+                             headers={"Authorization": f"Basic {PHONE_KEY}"})
+            assert r.status == 401
+            # 키가 맞으면 인증은 통과하고 본문 검증(check)에서 400 으로 막힌다
+            r = await c.post("/internal/v1/calls", json={}, headers=bearer(PHONE_KEY))
+            assert r.status == 400, r.status
+    assert not started, "인증 실패/본문 오류인데 전화를 걸었다"
+
+
+@at("전화 모듈: PHONE_API_KEY 가 없거나 32자 미만이면 503 으로 닫는다")
+async def _():
+    for value in (None, "short-key"):
+        with env(PHONE_API_KEY=value):
+            async with await _voice_client() as c:
+                if value is None:
+                    os.environ.pop("PHONE_API_KEY", None)   # import 시 load_dotenv 가 되살렸을 수 있다
+                r = await c.post("/internal/v1/calls", json={}, headers=bearer("short-key"))
+                assert r.status == 503, (value, r.status)
+                assert (await r.json())["error"]["code"] == "AUTH_NOT_CONFIGURED"
+                assert (await c.get("/health")).status == 200
+
+
+@at("phone_client: PHONE_API_KEY 가 없으면 보내지 않고 PhoneDispatchError")
+async def _():
+    with env(PHONE_API_KEY=None):
+        try:
+            await phone_client.dispatch({"contact_job_id": 1})
+        except phone_client.PhoneDispatchError as e:
+            assert "PHONE_API_KEY" in str(e), e
+        else:
+            raise AssertionError("키 없이 발신 요청을 보냈다")
+
+
+@at("phone_client: 발신 요청에 Bearer PHONE_API_KEY 를 붙인다")
+async def _():
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+    seen = {}
+
+    async def calls(request):
+        seen["auth"] = request.headers.get("Authorization")
+        return web.json_response({"success": True, "data": {"contact_job_id": 1, "accepted": True},
+                                  "error": None}, status=202)
+
+    fake = web.Application()
+    fake.add_routes([web.post("/internal/v1/calls", calls)])
+    real_base = phone_client.BASE
+    async with TestServer(fake) as srv:
+        phone_client.BASE = str(srv.make_url("")).rstrip("/")
+        try:
+            with env(PHONE_API_KEY=PHONE_KEY):
+                await phone_client.dispatch({"contact_job_id": 1})
+        finally:
+            phone_client.BASE = real_base
+    assert seen["auth"] == f"Bearer {PHONE_KEY}", seen
+
+
 if __name__ == "__main__":
     for line in PASS:
         print(f"  통과  {line}")
