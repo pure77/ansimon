@@ -23,6 +23,7 @@
     </form>
   </main>
   <div id="toast"></div>
+<script src="./assets/config.js"></script>
 <script src="./assets/api.js"></script>
 <script>
   clearToken();   // 만료된 토큰이 로그인 요청에 붙어 401 이 나는 것을 막는다
@@ -30,7 +31,7 @@
   function safeNext() {
     const next = new URLSearchParams(location.search).get("next") || "";
     const ok = /^[a-z0-9-]+\.html(\?[^#]*)?$/i.test(next) && !/^login\.html/i.test(next);
-    return ok ? next : "index.html";
+    return ok ? next : "index.html" + apiParam("?");
   }
 
   $("#login-form").addEventListener("submit", async (event) => {

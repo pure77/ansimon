@@ -3,8 +3,12 @@
    API_BASE 를 채우면 실 백엔드, 비우면 각 페이지의 MOCK 을 사용합니다.
    응답은 백엔드 공통 포맷 {success, data, error} 를 가정합니다.
    ═══════════════════════════════════════════════════════════════ */
+/* ?api= override 는 로컬 개발(localhost/127.0.0.1)에서만 받는다.
+   운영에서 조작된 링크가 관리자 비밀번호·토큰을 다른 서버로 보내지 못하게 막는다. */
+const LOCAL_HOST = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const API_OVERRIDE = LOCAL_HOST ? new URLSearchParams(location.search).get("api") : null;
 const API_BASE = String(
-  window.ANSIMON_API_BASE || new URLSearchParams(location.search).get("api") || "http://localhost:8080"
+  window.ANSIMON_API_BASE || API_OVERRIDE || "http://localhost:8080"
 ).replace(/\/$/, "");
 
 /* ── 관리자 토큰 ──
@@ -26,8 +30,7 @@ function redirectToLogin() {
 
 /* ?api= 백엔드 override 를 로그인 화면까지 이어 준다(login.html 은 자기 쿼리에서 API_BASE 를 읽는다). */
 function apiParam(prefix) {
-  const api = new URLSearchParams(location.search).get("api");
-  return api ? `${prefix}api=${encodeURIComponent(api)}` : "";
+  return API_OVERRIDE ? `${prefix}api=${encodeURIComponent(API_OVERRIDE)}` : "";
 }
 
 if (!IS_LOGIN_PAGE && !getToken()) redirectToLogin();
