@@ -558,6 +558,15 @@ async def _():
             assert (await c.get("/health")).status == 200
 
 
+@at("연결 서버: 32자 미만 키는 설정 안 된 것으로 보고 503 으로 막는다")
+async def _():
+    with env(CONNECTION_API_KEY="short-key", ANSIMON_BACKEND_TOKEN="callback-key-000000000000000000000000"):
+        async with await _auth_client() as c:
+            r = await c.post("/v1/care-runs", data="x", headers=bearer("short-key"))
+            assert r.status == 503, r.status
+            assert (await r.json())["error"]["code"] == "AUTH_NOT_CONFIGURED"
+
+
 @at("백엔드 주소는 있는데 토큰이 없으면 보내지 않고 예외를 올린다")
 async def _():
     # 127.0.0.1:9 (discard) — 실수로 전송을 시도해도 즉시 연결 거부로 끝난다
