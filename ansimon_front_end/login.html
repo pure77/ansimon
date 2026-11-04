@@ -29,7 +29,8 @@
 
   function safeNext() {
     const next = new URLSearchParams(location.search).get("next") || "";
-    return /^[a-z0-9-]+\.html(\?[^#]*)?$/i.test(next) ? next : "index.html";
+    const ok = /^[a-z0-9-]+\.html(\?[^#]*)?$/i.test(next) && !/^login\.html/i.test(next);
+    return ok ? next : "index.html";
   }
 
   $("#login-form").addEventListener("submit", async (event) => {
@@ -41,6 +42,7 @@
     $("#login-error").textContent = "";
     try {
       const data = await api.post("/api/v1/auth/login", { loginId, password });
+      if (!data || !data.accessToken) throw new Error("토큰을 받지 못했습니다.");
       setToken(data.accessToken);
       location.href = safeNext();
     } catch (err) {

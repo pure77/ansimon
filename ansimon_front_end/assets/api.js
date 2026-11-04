@@ -21,7 +21,13 @@ function authHeaders() { const t = getToken(); return t ? { Authorization: `Bear
 function redirectToLogin() {
   clearToken();
   const here = location.pathname.split("/").pop() + location.search;
-  location.href = `login.html?next=${encodeURIComponent(here)}`;
+  location.href = `login.html?next=${encodeURIComponent(here)}${apiParam("&")}`;
+}
+
+/* ?api= 백엔드 override 를 로그인 화면까지 이어 준다(login.html 은 자기 쿼리에서 API_BASE 를 읽는다). */
+function apiParam(prefix) {
+  const api = new URLSearchParams(location.search).get("api");
+  return api ? `${prefix}api=${encodeURIComponent(api)}` : "";
 }
 
 if (!IS_LOGIN_PAGE && !getToken()) redirectToLogin();
@@ -104,6 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
   button.type = "button";
   button.className = "pill-btn";
   button.textContent = "로그아웃";
-  button.addEventListener("click", () => { clearToken(); location.href = "login.html"; });
+  button.addEventListener("click", () => { clearToken(); location.href = `login.html${apiParam("?")}`; });
   navEnd.appendChild(button);
 });
