@@ -6,6 +6,7 @@ import 로 합치면 sys.path 순서에 따라 엉뚱한 쪽이 잡힌다. 그�
 scikit-learn 을 설치할 이유가 없다. 경계는 이미 HTTP 로 나 있다 — 그대로 쓴다.
 
 anshimon-rag 실행:  uvicorn server:app --port 8000
+요청에는 Authorization: Bearer $RAG_API_KEY 를 붙인다. RAG 서버와 같은 값.
 """
 from __future__ import annotations
 
@@ -34,8 +35,19 @@ class GuidanceBlocked(RagError):
         self.issues = issues
 
 
+MIN_KEY_LENGTH = 32
+
+
+def _auth_header() -> dict:
+    key = (os.getenv("RAG_API_KEY") or "").strip()
+    if len(key) < MIN_KEY_LENGTH:
+        # 보내봐야 401 이다. 원인을 여기서 분명히 한다 → orchestrator 가 502 RAG_UNAVAILABLE 로 올린다.
+        raise RagError("RAG_API_KEY 가 없거나 32자 미만입니다.")
+    return {"Authorization": f"Bearer {key}"}
+
+
 async def _post(session: aiohttp.ClientSession, path: str, body: dict) -> Any:
-    async with session.post(f"{BASE}{path}", json=body,
+    async with session.post(f"{BASE}{path}", json=body, headers=_auth_header(),
                             timeout=aiohttp.ClientTimeout(total=TIMEOUT)) as r:
         data = await r.json(content_type=None)
         if r.status == 200:
@@ -78,6 +90,6 @@ async def create_intervention_plan(
 async def diagnostics() -> dict:
     """Alan/TMAP/쉼터 키가 꽂혀 있는지. 시연 전에 이걸 먼저 본다."""
     async with aiohttp.ClientSession() as s:
-        async with s.get(f"{BASE}/v1/diagnostics",
+        async with s.get(f"{BASE}/v1/diagnostics", headers=_auth_header(),
                          timeout=aiohttp.ClientTimeout(total=15)) as r:
             return await r.json(content_type=None)

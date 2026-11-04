@@ -735,6 +735,43 @@ async def _():
     assert [jid for jid, _ in started] == [9001, 9002, 9003, 9004], started
 
 
+RAG_KEY = "rag-key-00000000000000000000000000000000"
+
+
+@at("rag_client: RAG_API_KEY 가 없으면 보내지 않고 RagError")
+async def _():
+    with env(RAG_API_KEY=None):
+        try:
+            await rag_client.create_intervention_plan(1, 1, {}, {})
+        except rag_client.RagError as e:
+            assert "RAG_API_KEY" in str(e), e
+        else:
+            raise AssertionError("키 없이 RAG 를 불렀다")
+
+
+@at("rag_client: 안내계획 요청에 Bearer RAG_API_KEY 를 붙인다")
+async def _():
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+    seen = {}
+
+    async def plans(request):
+        seen["auth"] = request.headers.get("Authorization")
+        return web.json_response({"guidanceSentences": []})
+
+    fake = web.Application()
+    fake.add_routes([web.post("/v1/intervention-plans", plans)])
+    real_base = rag_client.BASE
+    async with TestServer(fake) as srv:
+        rag_client.BASE = str(srv.make_url("")).rstrip("/")
+        try:
+            with env(RAG_API_KEY=RAG_KEY):
+                await rag_client.create_intervention_plan(1, 1, {}, {})
+        finally:
+            rag_client.BASE = real_base
+    assert seen["auth"] == f"Bearer {RAG_KEY}", seen
+
+
 if __name__ == "__main__":
     for line in PASS:
         print(f"  통과  {line}")

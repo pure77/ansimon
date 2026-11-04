@@ -10,6 +10,7 @@
     GET  /v1/diagnostics            Alan / TMAP / 쉼터 / RAG 키·상태 한 번에 확인
     POST /v1/shelter/recommend      위경도 -> TMAP 최적 쉼터 (LLM 없이 쉼터만)
     POST /v1/intervention-plans     위경도(또는 쉼터) -> 쉼터+안내문+근거검증 전체
+인증: /health 외에는 Authorization: Bearer $RAG_API_KEY 필수 (연결 서버만 부른다).
 
 핵심: /v1/intervention-plans 에 shelter 를 안 주고 latitude/longitude 만 주면
 서버가 쉼터 추천(TMAP)을 스스로 돌린 뒤 그 결과를 LLM 컨텍스트로 넣는다.
@@ -23,12 +24,12 @@
 """
 from __future__ import annotations
 
+import hmac
 import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, FastAPI, Header, HTTPException
 
 try:
     from dotenv import load_dotenv
@@ -48,13 +49,24 @@ app = FastAPI(
     version="2.0.0",
 )
 
-# 프론트엔드(단일 HTML 대시보드)가 file:// 이나 다른 포트에서 바로 붙을 수 있게 열어둔다.
-# 운영에서는 allow_origins 를 실제 도메인으로 좁힐 것.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], allow_credentials=False,
-    allow_methods=["*"], allow_headers=["*"],
-)
+# 이보다 짧은 키는 추측 가능하다. 연결 서버·백엔드와 같은 기준.
+MIN_KEY_LENGTH = 32
+
+
+def require_api_key(authorization: Optional[str] = Header(default=None)) -> None:
+    """연결 서버만 부른다. 호출마다 유료 LLM·TMAP 이 돌아서 키 없이 열어두지 않는다.
+
+    브라우저가 직접 부르는 화면이 없으므로 CORS 도 열지 않는다.
+    """
+    expected = (os.getenv("RAG_API_KEY") or "").strip()
+    if len(expected) < MIN_KEY_LENGTH:
+        raise HTTPException(status_code=503, detail={
+            "code": "AUTH_NOT_CONFIGURED", "message": "서버 인증 키가 설정되지 않았습니다."})
+    presented = ""
+    if authorization and authorization.startswith("Bearer "):
+        presented = authorization[len("Bearer "):].strip()
+    if not presented or not hmac.compare_digest(presented.encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail={"code": "UNAUTHORIZED", "message": "인증이 필요합니다."})
 
 
 class ShelterRequest(ContractModel):
@@ -81,7 +93,7 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/v1/diagnostics")
+@app.get("/v1/diagnostics", dependencies=[Depends(require_api_key)])
 def diagnostics() -> dict:
     """키가 다 꽂혀 있는지, Alan 이 어떤 규격으로 붙는지 한 화면에서 본다.
 
@@ -103,7 +115,7 @@ def diagnostics() -> dict:
     return report
 
 
-@app.post("/v1/shelter/recommend")
+@app.post("/v1/shelter/recommend", dependencies=[Depends(require_api_key)])
 def recommend_shelter(payload: ShelterRequest) -> dict:
     """LLM 없이 쉼터만. 프론트 지도 표시나 쉼터 로직 단독 테스트용."""
     try:
@@ -114,7 +126,7 @@ def recommend_shelter(payload: ShelterRequest) -> dict:
                                                      "message": str(e)})
 
 
-@app.post("/v1/intervention-plans")
+@app.post("/v1/intervention-plans", dependencies=[Depends(require_api_key)])
 def create_intervention_plan(payload: InterventionPlanRequest) -> dict:
     try:
         return generate_intervention_plan(
