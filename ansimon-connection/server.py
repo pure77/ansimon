@@ -146,9 +146,12 @@ async def diagnostics(_: web.Request) -> web.Response:
         "connection": {"up": True, "port": PORT},
         "rag": {**rag, "baseUrl": rag_client.BASE},
         "phone": {**phone, "baseUrl": phone_client.BASE},
-        "keys": {k: bool((os.getenv(k) or "").strip())
-                 for k in ("ALAN_API_KEY", "TMAP_APP_KEY", "SHELTER_API_BASE_URL",
-                           "CLAWOPS_API_KEY", "OPENAI_API_KEY")},
+        "keys": {**{k: bool((os.getenv(k) or "").strip())
+                    for k in ("ALAN_API_KEY", "TMAP_APP_KEY", "SHELTER_API_BASE_URL",
+                              "CLAWOPS_API_KEY", "OPENAI_API_KEY")},
+                 # 서비스 간 인증 키는 32자 이상이어야 설정된 것으로 본다
+                 **{k: len((os.getenv(k) or "").strip()) >= MIN_KEY_LENGTH
+                    for k in ("PHONE_API_KEY", "RAG_API_KEY")}},
         "consentAccepts": sorted(contracts.CONSENT_OK),
         "backend": {"baseUrl": backend_client.base_url() or None,
                     "path": backend_client.PATH},

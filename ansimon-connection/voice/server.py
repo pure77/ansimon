@@ -69,8 +69,13 @@ def _clean(value: str | None) -> str:
 
 
 def _origin(url: str) -> str:
-    """scheme://host:port 만 남긴다. userinfo(@) 가 섞인 주소는 netloc 이 달라져 일치하지 않는다."""
+    """scheme://host:port 만 남긴다. userinfo(@) 가 섞인 주소는 netloc 이 달라져 일치하지 않는다.
+
+    http/https 가 아니거나 호스트가 없으면 "" — 호출하는 쪽에서 허용하지 않는다.
+    """
     parts = urlsplit(url.strip())
+    if parts.scheme.lower() not in ("http", "https") or not parts.netloc:
+        return ""
     return f"{parts.scheme}://{parts.netloc}".lower()
 
 
@@ -84,7 +89,7 @@ def allowed_callback_origins() -> set[str]:
     urls.append(_clean(os.getenv("CONNECTION_CALLBACK_URL"))
                 or f"http://localhost:{_clean(os.getenv('CONNECTION_PORT')) or '7000'}")
     urls.append(_clean(os.getenv("ANSIMON_BACKEND_BASE_URL")))
-    return {_origin(u) for u in urls if u.strip()}
+    return {o for o in (_origin(u) for u in urls if u.strip()) if o}
 
 
 async def run(job: dict, to: str) -> None:
@@ -104,7 +109,8 @@ async def calls(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=str(e))
 
     callback = body.get("callback_url") if isinstance(body, dict) else None
-    if callback and _origin(callback) not in allowed_callback_origins():
+    if callback is not None and (not isinstance(callback, str)
+                                 or _origin(callback) not in allowed_callback_origins()):
         # 결과와 함께 콜백 토큰이 그 주소로 나간다. 모르는 곳이면 전화도 걸지 않는다.
         return fail("CALLBACK_NOT_ALLOWED", "허용되지 않은 callback_url 입니다.", 400)
 

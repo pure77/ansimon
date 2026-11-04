@@ -83,7 +83,9 @@ async def preflight() -> bool:
             print("       out/chunks.jsonl 없음 → anshimon-rag 에서 python ingest.py")
             ok = False
     except Exception as e:
-        print(f"  [--] RAG   {rag_client.BASE} 응답 없음 ({type(e).__name__})\n"
+        # RagError 는 상태코드·원인(키 불일치 등)이 메시지에 들어 있다
+        reason = str(e) if isinstance(e, rag_client.RagError) else type(e).__name__
+        print(f"  [--] RAG   {rag_client.BASE} 응답 없음 ({reason})\n"
               f"       anshimon-rag$ uvicorn server:app --port 8000")
         ok = False
     try:

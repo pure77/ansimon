@@ -799,6 +799,21 @@ async def _():
             raise AssertionError("짧은 토큰으로 전송을 시도했다")
 
 
+@at("전화 모듈: 문자열이 아닌 callback_url 이나 호스트 없는 허용 항목은 400 CALLBACK_NOT_ALLOWED")
+async def _():
+    started = []
+    with env(PHONE_API_KEY=PHONE_KEY, CONNECTION_CALLBACK_URL="http://localhost:7000",
+             ANSIMON_BACKEND_BASE_URL=None, PHONE_CALLBACK_ALLOWED_ORIGINS="conn-internal"):
+        async with await _voice_client(started) as c:
+            os.environ.pop("ANSIMON_BACKEND_BASE_URL", None)
+            for cb in (123, "x", ["http://localhost:7000"]):
+                r = await c.post("/internal/v1/calls", headers=bearer(PHONE_KEY),
+                                 json={"contact_job_id": 1, "callback_url": cb})
+                assert r.status == 400, (cb, r.status)
+                assert (await r.json())["error"]["code"] == "CALLBACK_NOT_ALLOWED", cb
+    assert not started
+
+
 def _with_fake_rag(routes, run):
     from aiohttp import web
     from aiohttp.test_utils import TestServer
