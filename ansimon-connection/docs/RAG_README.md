@@ -222,6 +222,7 @@ uvicorn server:app --host 0.0.0.0 --port 8000
 요청 예시:
 ```bash
 curl -X POST http://localhost:8000/v1/intervention-plans \
+  -H "Authorization: Bearer $RAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "elderlyId": 101,

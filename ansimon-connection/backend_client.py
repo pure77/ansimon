@@ -34,9 +34,9 @@ async def post_result(payload: dict, idempotency_key: Optional[str] = None) -> O
         # 재시도는 같은 contact_job 의 attempt 만 올리므로 회차를 붙여야 2차 결과가 안 버려진다.
         headers["Idempotency-Key"] = idempotency_key
     token = (os.getenv("ANSIMON_BACKEND_TOKEN") or "").strip()
-    if not token:
+    if len(token) < 32:
         # 백엔드 /internal/** 은 키 없는 요청을 401 로 막는다. 보내기 전에 원인을 분명히 알린다.
-        raise RuntimeError("ANSIMON_BACKEND_TOKEN 이 비어 있어 백엔드로 전송할 수 없습니다.")
+        raise RuntimeError("ANSIMON_BACKEND_TOKEN 이 비었거나 32자 미만이라 백엔드로 전송할 수 없습니다.")
     headers["Authorization"] = f"Bearer {token}"
 
     async with aiohttp.ClientSession() as s:

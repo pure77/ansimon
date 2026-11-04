@@ -43,6 +43,9 @@ PORT = int(os.getenv("CONNECTION_PORT", "7000"))
 # 인증 없이 열어 두는 경로. 나머지는 전부 Bearer 키가 맞아야 한다.
 PUBLIC_PATHS = {"/health"}
 
+# 이보다 짧은 키는 추측 가능하다. 백엔드 InternalApiProperties 와 같은 기준.
+MIN_KEY_LENGTH = 32
+
 
 def ok(data, status: int = 200) -> web.Response:
     return web.json_response({"success": True, "data": data, "error": None}, status=status)
@@ -62,7 +65,9 @@ def _expected_token(path: str) -> str:
     CONNECTION_API_KEY 로 부른다.
     """
     name = "ANSIMON_BACKEND_TOKEN" if path.startswith("/internal/") else "CONNECTION_API_KEY"
-    return (os.getenv(name) or "").strip()
+    token = (os.getenv(name) or "").strip()
+    # 짧은 키는 안 넣은 것과 같게 본다 — 문을 열어두지 않는다
+    return token if len(token) >= MIN_KEY_LENGTH else ""
 
 
 @web.middleware
@@ -141,9 +146,12 @@ async def diagnostics(_: web.Request) -> web.Response:
         "connection": {"up": True, "port": PORT},
         "rag": {**rag, "baseUrl": rag_client.BASE},
         "phone": {**phone, "baseUrl": phone_client.BASE},
-        "keys": {k: bool((os.getenv(k) or "").strip())
-                 for k in ("ALAN_API_KEY", "TMAP_APP_KEY", "SHELTER_API_BASE_URL",
-                           "CLAWOPS_API_KEY", "OPENAI_API_KEY")},
+        "keys": {**{k: bool((os.getenv(k) or "").strip())
+                    for k in ("ALAN_API_KEY", "TMAP_APP_KEY", "SHELTER_API_BASE_URL",
+                              "CLAWOPS_API_KEY", "OPENAI_API_KEY")},
+                 # 서비스 간 인증 키는 32자 이상이어야 설정된 것으로 본다
+                 **{k: len((os.getenv(k) or "").strip()) >= MIN_KEY_LENGTH
+                    for k in ("PHONE_API_KEY", "RAG_API_KEY")}},
         "consentAccepts": sorted(contracts.CONSENT_OK),
         "backend": {"baseUrl": backend_client.base_url() or None,
                     "path": backend_client.PATH},

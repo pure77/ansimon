@@ -408,26 +408,59 @@ def t_e2e_fake_shelter_is_blocked():
 # --- 5. HTTP 서버 -----------------------------------------------------------
 
 
+RAG_KEY = "rag-key-00000000000000000000000000000000"
+
+
+def t_http_requires_api_key():
+    from fastapi.testclient import TestClient
+    import server
+
+    client = TestClient(server.app)
+    os.environ["RAG_API_KEY"] = RAG_KEY
+    assert client.get("/health").status_code == 200, "헬스체크는 공개"
+    for method, path in (("get", "/v1/diagnostics"), ("post", "/v1/shelter/recommend"),
+                         ("post", "/v1/intervention-plans")):
+        kw = {"json": {}} if method == "post" else {}   # TestClient.get 은 json 인자가 없다
+        r = getattr(client, method)(path, **kw)
+        assert r.status_code == 401, (path, r.status_code)
+        assert r.json()["detail"]["code"] == "UNAUTHORIZED", r.text
+        r = getattr(client, method)(path, headers={"Authorization": "Bearer wrong-key-0000000000000000000000000"}, **kw)
+        assert r.status_code == 401, (path, r.status_code)
+
+    for value in ("", "short-key"):
+        os.environ["RAG_API_KEY"] = value
+        r = client.get("/v1/diagnostics", headers={"Authorization": f"Bearer {value}"})
+        assert r.status_code == 503, (value, r.status_code)
+        assert r.json()["detail"]["code"] == "AUTH_NOT_CONFIGURED"
+    os.environ["RAG_API_KEY"] = RAG_KEY
+
+    r = client.options("/v1/intervention-plans", headers={
+        "Origin": "http://evil.example", "Access-Control-Request-Method": "POST"})
+    assert "access-control-allow-origin" not in {k.lower() for k in r.headers}, "브라우저 CORS 를 열지 않는다"
+
+
 def t_http_endpoints():
     from fastapi.testclient import TestClient
     import server
 
     client = TestClient(server.app)
+    os.environ["RAG_API_KEY"] = RAG_KEY
+    AUTH = {"Authorization": f"Bearer {RAG_KEY}"}
     assert client.get("/health").json() == {"status": "ok"}
 
-    diag = client.get("/v1/diagnostics").json()
+    diag = client.get("/v1/diagnostics", headers=AUTH).json()
     assert "keys" in diag and "alan" in diag, diag
 
     body = {"elderlyId": 201, "riskSnapshotId": 901,
             "elderlyProfile": PROFILE, "riskSnapshot": RISK, "weather": WEATHER}
 
     if LIVE:
-        r = client.post("/v1/shelter/recommend", json={"latitude": 37.5665, "longitude": 126.9780})
+        r = client.post("/v1/shelter/recommend", json={"latitude": 37.5665, "longitude": 126.9780}, headers=AUTH)
         assert r.status_code == 200, r.text
         assert r.json().get("route_source") == "TMAP", \
             f"TMAP 이 아니라 직선거리 폴백으로 응답했습니다: {r.text[:300]}"
 
-        r = client.post("/v1/intervention-plans", json=body)
+        r = client.post("/v1/intervention-plans", json=body, headers=AUTH)
         if r.status_code == 422:
             raise AssertionError(
                 "실 API 인데 needs_review 로 보류됐다 -> TMAP 경로 계산이 실패하고 있다. "
@@ -440,11 +473,11 @@ def t_http_endpoints():
 
     with offline_shelter():
         r = client.post("/v1/shelter/recommend",
-                        json={"latitude": 37.5665, "longitude": 126.9780, "file": FIXTURE})
+                        json={"latitude": 37.5665, "longitude": 126.9780, "file": FIXTURE}, headers=AUTH)
         assert r.status_code == 200, r.text
         assert r.json()["name"] == "종로노인종합복지관 경로당", r.json()
 
-        r = client.post("/v1/intervention-plans", json=body)
+        r = client.post("/v1/intervention-plans", json=body, headers=AUTH)
         assert r.status_code == 200, r.text
         assert r.json()["recommendedShelter"]["walkMinutes"] == 3, r.json()["recommendedShelter"]
 
@@ -453,7 +486,7 @@ def t_http_endpoints():
         "elderlyId": 202, "riskSnapshotId": 902,
         "elderlyProfile": {"targetAudience": ["ELDERLY"]},
         "riskSnapshot": {"riskLevel": "HIGH", "riskScore": 0.7},
-        "shelter": {"name": "가상의쉼터12345", "address": "어딘가"}})
+        "shelter": {"name": "가상의쉼터12345", "address": "어딘가"}}, headers=AUTH)
     assert r.status_code == 422, r.status_code
     assert r.json()["detail"]["error"] == "GUIDANCE_GENERATION_BLOCKED", r.json()
 
@@ -523,6 +556,7 @@ def main() -> int:
     check("없는 쉼터 -> 차단", t_e2e_fake_shelter_is_blocked)
 
     print("\n[5] HTTP 서버")
+    check("인증 없으면 401, 키 미설정·짧으면 503, CORS 없음", t_http_requires_api_key)
     check("/health /diagnostics /shelter /intervention-plans", t_http_endpoints)
 
     print("\n[6] 실제 외부 API")

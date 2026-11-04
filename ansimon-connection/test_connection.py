@@ -19,6 +19,8 @@ from datetime import datetime, timedelta
 os.environ.setdefault("ALAN_API_KEY", "")          # 질문 생성은 템플릿 경로로
 os.environ.setdefault("CALL_RESULT_TIMEOUT_SEC", "3")
 os.environ.pop("ANSIMON_BACKEND_BASE_URL", None)   # 백엔드 전송은 출력만
+# 전화 걸기 전 검사(32자 이상)를 통과하는 기본 콜백 토큰. 토큰이 없는 경로는 env(...) 로 따로 검증한다.
+os.environ.setdefault("ANSIMON_BACKEND_TOKEN", "callback-key-000000000000000000000000")
 
 import backend_client
 import contracts
@@ -558,6 +560,15 @@ async def _():
             assert (await c.get("/health")).status == 200
 
 
+@at("연결 서버: 32자 미만 키는 설정 안 된 것으로 보고 503 으로 막는다")
+async def _():
+    with env(CONNECTION_API_KEY="short-key", ANSIMON_BACKEND_TOKEN="callback-key-000000000000000000000000"):
+        async with await _auth_client() as c:
+            r = await c.post("/v1/care-runs", data="x", headers=bearer("short-key"))
+            assert r.status == 503, r.status
+            assert (await r.json())["error"]["code"] == "AUTH_NOT_CONFIGURED"
+
+
 @at("백엔드 주소는 있는데 토큰이 없으면 보내지 않고 예외를 올린다")
 async def _():
     # 127.0.0.1:9 (discard) — 실수로 전송을 시도해도 즉시 연결 거부로 끝난다
@@ -581,6 +592,273 @@ async def _():
             except orchestrator.Blocked as e:
                 assert e.result["code"] == "BACKEND_TOKEN_MISSING" and e.result["result"] is None
     assert not called, "토큰이 없는데 전화를 걸었다"
+
+
+PHONE_KEY = "phone-key-0000000000000000000000000000"
+
+
+def _voice_server():
+    """voice/server.py 를 'voice_server' 이름으로 한 번만 읽는다 — 연결 서버 server.py 와 이름이 겹친다."""
+    import importlib.util
+    if "voice_server" in sys.modules:
+        return sys.modules["voice_server"]
+    voice_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "voice")
+    if voice_dir not in sys.path:
+        sys.path.append(voice_dir)   # 맨 뒤에 둔다. 앞에 두면 `import server` 가 전화 모듈을 집는다
+    spec = importlib.util.spec_from_file_location("voice_server", os.path.join(voice_dir, "server.py"))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["voice_server"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+async def _voice_client(started=None):
+    """전화 모듈 테스트 클라이언트. 실제 발신(run)은 기록만 하는 가짜로 바꾼다."""
+    from aiohttp.test_utils import TestClient, TestServer
+    vs = _voice_server()
+
+    async def fake_run(job, to):
+        if started is not None:
+            started.append((job["contact_job_id"], to))
+        vs.INFLIGHT.discard(job["contact_job_id"])
+
+    vs.run = fake_run
+    return TestClient(TestServer(vs.app()))
+
+
+@at("전화 모듈: /internal/v1/calls 는 PHONE_API_KEY 가 맞아야만 통과하고, 아니면 전화를 걸지 않는다")
+async def _():
+    started = []
+    with env(PHONE_API_KEY=PHONE_KEY):
+        async with await _voice_client(started) as c:
+            assert (await c.get("/health")).status == 200
+            r = await c.post("/internal/v1/calls", json={"contact_job_id": 1})
+            assert r.status == 401, r.status
+            assert (await r.json())["error"]["code"] == "UNAUTHORIZED"
+            r = await c.post("/internal/v1/calls", json={},
+                             headers=bearer("wrong-key-000000000000000000000000000"))
+            assert r.status == 401
+            r = await c.post("/internal/v1/calls", json={},
+                             headers={"Authorization": f"Basic {PHONE_KEY}"})
+            assert r.status == 401
+            # 키가 맞으면 인증은 통과하고 본문 검증(check)에서 400 으로 막힌다
+            r = await c.post("/internal/v1/calls", json={}, headers=bearer(PHONE_KEY))
+            assert r.status == 400, r.status
+    assert not started, "인증 실패/본문 오류인데 전화를 걸었다"
+
+
+@at("전화 모듈: PHONE_API_KEY 가 없거나 32자 미만이면 503 으로 닫는다")
+async def _():
+    for value in (None, "short-key"):
+        with env(PHONE_API_KEY=value):
+            async with await _voice_client() as c:
+                if value is None:
+                    os.environ.pop("PHONE_API_KEY", None)   # import 시 load_dotenv 가 되살렸을 수 있다
+                r = await c.post("/internal/v1/calls", json={}, headers=bearer("short-key"))
+                assert r.status == 503, (value, r.status)
+                assert (await r.json())["error"]["code"] == "AUTH_NOT_CONFIGURED"
+                assert (await c.get("/health")).status == 200
+
+
+@at("phone_client: PHONE_API_KEY 가 없으면 보내지 않고 PhoneDispatchError")
+async def _():
+    with env(PHONE_API_KEY=None):
+        try:
+            await phone_client.dispatch({"contact_job_id": 1})
+        except phone_client.PhoneDispatchError as e:
+            assert "PHONE_API_KEY" in str(e), e
+        else:
+            raise AssertionError("키 없이 발신 요청을 보냈다")
+
+
+@at("phone_client: 발신 요청에 Bearer PHONE_API_KEY 를 붙인다")
+async def _():
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+    seen = {}
+
+    async def calls(request):
+        seen["auth"] = request.headers.get("Authorization")
+        return web.json_response({"success": True, "data": {"contact_job_id": 1, "accepted": True},
+                                  "error": None}, status=202)
+
+    fake = web.Application()
+    fake.add_routes([web.post("/internal/v1/calls", calls)])
+    real_base = phone_client.BASE
+    async with TestServer(fake) as srv:
+        phone_client.BASE = str(srv.make_url("")).rstrip("/")
+        try:
+            with env(PHONE_API_KEY=PHONE_KEY):
+                await phone_client.dispatch({"contact_job_id": 1})
+        finally:
+            phone_client.BASE = real_base
+    assert seen["auth"] == f"Bearer {PHONE_KEY}", seen
+
+
+@at("전화 모듈: 허용 목록에 없는 callback_url 이면 전화를 걸지 않고 400 CALLBACK_NOT_ALLOWED")
+async def _():
+    started = []
+    with env(PHONE_API_KEY=PHONE_KEY, CONNECTION_CALLBACK_URL="http://localhost:7000",
+             ANSIMON_BACKEND_BASE_URL=None, PHONE_CALLBACK_ALLOWED_ORIGINS=None):
+        async with await _voice_client(started) as c:
+            os.environ.pop("ANSIMON_BACKEND_BASE_URL", None)
+            os.environ.pop("PHONE_CALLBACK_ALLOWED_ORIGINS", None)
+            for evil in ("https://evil.example/steal",
+                         "http://localhost:7000.evil.example",   # 접미사 붙이기
+                         "http://localhost:7000@evil.example",   # userinfo 위장
+                         "http://localhost:7001"):               # 포트 다름
+                r = await c.post("/internal/v1/calls", headers=bearer(PHONE_KEY),
+                                 json={"contact_job_id": 1, "callback_url": evil})
+                assert r.status == 400, (evil, r.status)
+                assert (await r.json())["error"]["code"] == "CALLBACK_NOT_ALLOWED", evil
+    assert not started
+
+
+@at("전화 모듈: 허용된 출처(경로·대소문자 무관)면 발신을 접수한다")
+async def _():
+    import copy
+    started = []
+    with env(PHONE_API_KEY=PHONE_KEY, CONNECTION_CALLBACK_URL="http://localhost:7000",
+             ANSIMON_BACKEND_BASE_URL="https://api.ansimon.example/",
+             PHONE_CALLBACK_ALLOWED_ORIGINS="http://conn.railway.internal:7000, "):
+        async with await _voice_client(started) as c:
+            job = copy.deepcopy(sys.modules["job"].DEMO_JOB)
+            job["to_number"] = "01000000000"
+            for i, cb in enumerate(("http://localhost:7000/", "HTTPS://API.ansimon.example",
+                                    "http://conn.railway.internal:7000/x", None), start=1):
+                job["contact_job_id"] = 9000 + i
+                if cb is None:
+                    job.pop("callback_url", None)   # 없으면 report 가 env 로 떨어진다 → 허용
+                else:
+                    job["callback_url"] = cb
+                r = await c.post("/internal/v1/calls", headers=bearer(PHONE_KEY), json=job)
+                assert r.status == 202, (cb, r.status, await r.text())
+            await asyncio.sleep(0)   # create_task 로 띄운 가짜 run 이 돌 시간
+    assert [jid for jid, _ in started] == [9001, 9002, 9003, 9004], started
+
+
+RAG_KEY = "rag-key-00000000000000000000000000000000"
+
+
+@at("rag_client: RAG_API_KEY 가 없으면 보내지 않고 RagError")
+async def _():
+    with env(RAG_API_KEY=None):
+        try:
+            await rag_client.create_intervention_plan(1, 1, {}, {})
+        except rag_client.RagError as e:
+            assert "RAG_API_KEY" in str(e), e
+        else:
+            raise AssertionError("키 없이 RAG 를 불렀다")
+
+
+@at("rag_client: 안내계획 요청에 Bearer RAG_API_KEY 를 붙인다")
+async def _():
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+    seen = {}
+
+    async def plans(request):
+        seen["auth"] = request.headers.get("Authorization")
+        return web.json_response({"guidanceSentences": []})
+
+    fake = web.Application()
+    fake.add_routes([web.post("/v1/intervention-plans", plans)])
+    real_base = rag_client.BASE
+    async with TestServer(fake) as srv:
+        rag_client.BASE = str(srv.make_url("")).rstrip("/")
+        try:
+            with env(RAG_API_KEY=RAG_KEY):
+                await rag_client.create_intervention_plan(1, 1, {}, {})
+        finally:
+            rag_client.BASE = real_base
+    assert seen["auth"] == f"Bearer {RAG_KEY}", seen
+
+
+@at("백엔드 주소가 없어도 토큰이 32자 미만이면 전화를 걸기 전에 막는다")
+async def _():
+    called = []
+    with env(ANSIMON_BACKEND_BASE_URL=None, ANSIMON_BACKEND_TOKEN="short-token"):
+        os.environ.pop("ANSIMON_BACKEND_BASE_URL", None)
+        with fake_backends():
+            phone_client.dispatch = lambda j: called.append(j)
+            try:
+                await orchestrator.run(payload()); raise AssertionError("Blocked 가 나야 한다")
+            except orchestrator.Blocked as e:
+                assert e.result["code"] == "BACKEND_TOKEN_MISSING" and e.result["result"] is None
+    assert not called, "토큰이 짧은데 전화를 걸었다"
+
+
+@at("백엔드 전송: 토큰이 32자 미만이면 보내지 않고 예외를 올린다")
+async def _():
+    with env(ANSIMON_BACKEND_BASE_URL="http://127.0.0.1:9", ANSIMON_BACKEND_TOKEN="short-token"):
+        try:
+            await backend_client.post_result({"x": 1})
+        except RuntimeError as e:
+            assert "ANSIMON_BACKEND_TOKEN" in str(e), e
+        else:
+            raise AssertionError("짧은 토큰으로 전송을 시도했다")
+
+
+@at("전화 모듈: 문자열이 아닌 callback_url 이나 호스트 없는 허용 항목은 400 CALLBACK_NOT_ALLOWED")
+async def _():
+    started = []
+    with env(PHONE_API_KEY=PHONE_KEY, CONNECTION_CALLBACK_URL="http://localhost:7000",
+             ANSIMON_BACKEND_BASE_URL=None, PHONE_CALLBACK_ALLOWED_ORIGINS="conn-internal"):
+        async with await _voice_client(started) as c:
+            os.environ.pop("ANSIMON_BACKEND_BASE_URL", None)
+            for cb in (123, "x", ["http://localhost:7000"]):
+                r = await c.post("/internal/v1/calls", headers=bearer(PHONE_KEY),
+                                 json={"contact_job_id": 1, "callback_url": cb})
+                assert r.status == 400, (cb, r.status)
+                assert (await r.json())["error"]["code"] == "CALLBACK_NOT_ALLOWED", cb
+    assert not started
+
+
+def _with_fake_rag(routes, run):
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+
+    async def go():
+        fake = web.Application()
+        fake.add_routes(routes)
+        real_base = rag_client.BASE
+        async with TestServer(fake) as srv:
+            rag_client.BASE = str(srv.make_url("")).rstrip("/")
+            try:
+                with env(RAG_API_KEY=RAG_KEY):
+                    return await run()
+            finally:
+                rag_client.BASE = real_base
+    return go()
+
+
+@at("rag_client: diagnostics 는 Bearer RAG_API_KEY 를 붙이고 200 이면 본문을 돌려준다")
+async def _():
+    from aiohttp import web
+    seen = {}
+
+    async def diag(request):
+        seen["auth"] = request.headers.get("Authorization")
+        return web.json_response({"willUseMock": False, "keys": {}})
+
+    body = await _with_fake_rag([web.get("/v1/diagnostics", diag)], rag_client.diagnostics)
+    assert seen["auth"] == f"Bearer {RAG_KEY}", seen
+    assert body == {"willUseMock": False, "keys": {}}, body
+
+
+@at("rag_client: diagnostics 가 401 을 받으면 정상으로 보지 않고 RagError")
+async def _():
+    from aiohttp import web
+
+    async def diag(_):
+        return web.json_response({"success": False, "error": {"code": "UNAUTHORIZED"}}, status=401)
+
+    try:
+        await _with_fake_rag([web.get("/v1/diagnostics", diag)], rag_client.diagnostics)
+    except rag_client.RagError as e:
+        assert "401" in str(e), e
+    else:
+        raise AssertionError("401 인데 진단이 성공으로 처리됐다")
 
 
 if __name__ == "__main__":

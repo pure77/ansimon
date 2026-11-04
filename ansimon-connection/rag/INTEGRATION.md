@@ -217,7 +217,7 @@ POST /v1/intervention-plans
 
 ### Spring 에서 부르는 경우
 
-이 서버를 내부망에 띄우고 `RestTemplate`/`WebClient` 로 `/v1/intervention-plans` 를 호출하면 된다.
+이 서버를 내부망에 띄우고 `RestTemplate`/`WebClient` 로 `/v1/intervention-plans` 를 호출하면 된다. 요청마다 `Authorization: Bearer $RAG_API_KEY` 헤더가 필요하다(`/health` 제외).
 필드명이 전부 camelCase 라 DTO 를 그대로 매핑할 수 있다. FastAPI 단일 서비스로 간다면
 `pipeline.generate_intervention_plan()` 을 직접 import 해서 부르면 HTTP 왕복이 없다.
 
