@@ -84,10 +84,6 @@ public class ContactService {
     }
 
     /**
-     * 응답한 통화는 후속 지원 업무 판단에 쓰이므로 요약, 3상태 항목 네 개, 0~1 범위 신뢰도를 모두 갖춰야 합니다.
-     * LLM 결과를 그대로 믿지 않고 저장 전에 구조를 검증합니다.
-     */
-    /**
      * 같은 통화 결과가 동시에 두 번 들어와 사전 중복 조회를 함께 통과하면, 두 번째 INSERT는 멱등 키 유니크 제약에 걸립니다.
      * 이를 500으로 내보내지 않고 사전 조회와 같은 409로 바꿔, 호출한 서버가 "이미 처리됨"으로 판단할 수 있게 합니다.
      * 예외가 나가면 트랜잭션이 롤백되어 먼저 저장한 안내계획도 남지 않습니다.
@@ -102,6 +98,10 @@ public class ContactService {
         }
     }
 
+    /**
+     * 응답한 통화는 후속 지원 업무 판단에 쓰이므로 요약, 3상태 항목 네 개, 0~1 범위 신뢰도를 모두 갖춰야 합니다.
+     * LLM 결과를 그대로 믿지 않고 저장 전에 구조를 검증합니다.
+     */
     private void requireStructuredSummary(CallOutcomeRequest.Call call) {
         if (!StringUtils.hasText(call.summary())
                 || call.shelterIntent() == null
