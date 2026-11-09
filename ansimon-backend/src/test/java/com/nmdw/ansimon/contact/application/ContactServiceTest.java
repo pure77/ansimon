@@ -21,6 +21,7 @@ import com.nmdw.ansimon.risk.domain.RiskSnapshot;
 import com.nmdw.ansimon.risk.infra.RiskSnapshotRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DataIntegrityViolationException;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
@@ -31,6 +32,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -148,6 +150,19 @@ class ContactServiceTest {
                 .isInstanceOfSatisfying(BusinessException.class,
                         exception -> assertThat(exception.errorCode()).isEqualTo(ErrorCode.CONFLICT));
         verify(interventionPlanRepository, never()).save(any());
+    }
+
+    @Test
+    void reportsConflictWhenAConcurrentDuplicateHitsTheUniqueKey() {
+        givenElderlyAndRiskSnapshotExist();
+        doThrow(new DataIntegrityViolationException("Duplicate entry 'call-abc-123' for key 'uk_contact_idempotency_key'"))
+                .when(contactJobRepository).save(any(ContactJob.class));
+
+        assertThatThrownBy(() -> service.registerCallOutcome(request(answeredCall())))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+        verify(callObservationRepository, never()).save(any());
     }
 
     @Test
