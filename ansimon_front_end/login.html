@@ -50,7 +50,7 @@
       $("#login-error").textContent = err.code === "AUTH_INVALID_CREDENTIALS"
         ? "아이디 또는 비밀번호가 올바르지 않습니다."
         : err.code === "AUTH_TOO_MANY_ATTEMPTS"
-          ? "로그인 실패가 많아 잠시 막혔습니다. 15분 뒤 다시 시도하세요."
+          ? "로그인 실패가 많아 잠시 막혔습니다. 최대 15분 뒤 다시 시도하세요."
           : `로그인할 수 없습니다 (${err.message}).`;
     } finally {
       $("#login-submit").disabled = false;

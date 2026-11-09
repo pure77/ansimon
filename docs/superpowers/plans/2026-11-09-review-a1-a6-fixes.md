@@ -453,6 +453,8 @@ git commit -m "feat(auth): block a login ID for 15 minutes after 5 failed attemp
 
 ### Task 3: 프론트 로그아웃 버튼·429 문구, CORS 주석 정정 (A3·A4·A1)
 
+> 실행 중 결정: 로그아웃 버튼은 api.js에 이미 있어 Step 1을 건너뛰었다(중복 방지). 최종 리뷰 후 로그인 제한은 tryAcquire 원자 예약으로, 409 매핑은 멱등 키 제약 위반으로만 좁혔다.
+
 **Files:**
 - Modify: `ansimon_front_end/assets/api.js` (토큰 함수 블록 아래, 36행 `if (!IS_LOGIN_PAGE && !getToken()) redirectToLogin();` 다음)
 - Modify: `ansimon_front_end/login.html:50-52`
