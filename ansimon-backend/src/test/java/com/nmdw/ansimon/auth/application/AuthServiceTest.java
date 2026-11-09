@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -100,10 +101,12 @@ class AuthServiceTest {
                     .isInstanceOf(BusinessException.class);
         }
 
+        clearInvocations(passwordEncoder);
         assertThatThrownBy(() -> authService.login(new LoginRequest("admin", "correct-horse-battery")))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).errorCode())
                 .isEqualTo(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
         verify(tokenIssuer, never()).issue(anyString());
     }
 
@@ -131,6 +134,8 @@ class AuthServiceTest {
 
         authService.login(new LoginRequest("admin", "correct-horse-battery"));
 
-        assertThat(limiter.isBlocked("admin")).isFalse();
+        for (int i = 0; i < LoginAttemptLimiter.MAX_FAILURES; i++) {
+            assertThat(limiter.tryAcquire("admin")).isTrue();
+        }
     }
 }
