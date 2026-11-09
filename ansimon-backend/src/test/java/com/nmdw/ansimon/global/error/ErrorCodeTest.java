@@ -31,6 +31,8 @@ class ErrorCodeTest {
         assertThat(ErrorCode.EXTERNAL_SERVICE_SERVER_ERROR.status()).isEqualTo(HttpStatus.BAD_GATEWAY);
         assertThat(ErrorCode.UNAUTHORIZED.code()).isEqualTo("GLOBAL_UNAUTHORIZED");
         assertThat(ErrorCode.UNAUTHORIZED.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS.code()).isEqualTo("AUTH_TOO_MANY_ATTEMPTS");
+        assertThat(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS.status()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
     }
 
     @Test

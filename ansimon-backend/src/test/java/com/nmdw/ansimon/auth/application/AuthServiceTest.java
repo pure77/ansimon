@@ -29,12 +29,13 @@ class AuthServiceTest {
     private final AdminAccountRepository repository = mock(AdminAccountRepository.class);
     private final AccessTokenIssuer tokenIssuer = mock(AccessTokenIssuer.class);
     private final PasswordEncoder passwordEncoder = spy(PasswordEncoderFactories.createDelegatingPasswordEncoder());
+    private final LoginAttemptLimiter limiter = new LoginAttemptLimiter();
     private AuthService authService;
     private AdminAccount admin;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(repository, tokenIssuer, passwordEncoder);
+        authService = new AuthService(repository, tokenIssuer, passwordEncoder, limiter);
         admin = AdminAccount.create("admin", passwordEncoder.encode("correct-horse-battery"));
     }
 
@@ -89,5 +90,47 @@ class AuthServiceTest {
         verify(passwordEncoder, never()).matches(eq(longPassword), anyString());
         verify(passwordEncoder, times(1)).matches(anyString(), anyString());
         verify(tokenIssuer, never()).issue(anyString());
+    }
+
+    @Test
+    void refusesWithoutCheckingThePasswordOnceTheLoginIdIsBlocked() {
+        when(repository.findByLoginId("admin")).thenReturn(Optional.of(admin));
+        for (int i = 0; i < LoginAttemptLimiter.MAX_FAILURES; i++) {
+            assertThatThrownBy(() -> authService.login(new LoginRequest("admin", "wrong-password")))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("admin", "correct-horse-battery")))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).errorCode())
+                .isEqualTo(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+        verify(tokenIssuer, never()).issue(anyString());
+    }
+
+    @Test
+    void blocksUnknownLoginIdsTheSameWaySoBlockingRevealsNothing() {
+        when(repository.findByLoginId("ghost")).thenReturn(Optional.empty());
+        for (int i = 0; i < LoginAttemptLimiter.MAX_FAILURES; i++) {
+            assertThatThrownBy(() -> authService.login(new LoginRequest("ghost", "whatever")))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("ghost", "whatever")))
+                .extracting(e -> ((BusinessException) e).errorCode())
+                .isEqualTo(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+    }
+
+    @Test
+    void successfulLoginClearsEarlierFailures() {
+        when(repository.findByLoginId("admin")).thenReturn(Optional.of(admin));
+        when(tokenIssuer.issue("admin")).thenReturn(new AccessTokenIssuer.IssuedToken("jwt-value", 3600));
+        for (int i = 0; i < LoginAttemptLimiter.MAX_FAILURES - 1; i++) {
+            assertThatThrownBy(() -> authService.login(new LoginRequest("admin", "wrong-password")))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        authService.login(new LoginRequest("admin", "correct-horse-battery"));
+
+        assertThat(limiter.isBlocked("admin")).isFalse();
     }
 }

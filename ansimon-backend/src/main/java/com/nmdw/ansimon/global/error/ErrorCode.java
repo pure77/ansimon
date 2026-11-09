@@ -17,6 +17,7 @@ public enum ErrorCode {
     CONFLICT("GLOBAL_CONFLICT", HttpStatus.CONFLICT, "The request conflicts with the current state."),
     UNAUTHORIZED("GLOBAL_UNAUTHORIZED", HttpStatus.UNAUTHORIZED, "Authentication is required."),
     INVALID_CREDENTIALS("AUTH_INVALID_CREDENTIALS", HttpStatus.UNAUTHORIZED, "Login ID or password is incorrect."),
+    TOO_MANY_LOGIN_ATTEMPTS("AUTH_TOO_MANY_ATTEMPTS", HttpStatus.TOO_MANY_REQUESTS, "Too many failed login attempts. Try again later."),
     CONSENT_REQUIRED("GLOBAL_CONSENT_REQUIRED", HttpStatus.FORBIDDEN, "The elderly has not consented to automated calls."),
     GUIDANCE_GENERATION_BLOCKED("GLOBAL_GUIDANCE_GENERATION_BLOCKED", HttpStatus.UNPROCESSABLE_ENTITY, "Guidance generation was blocked by evidence verification."),
     INTERNAL_ERROR("GLOBAL_INTERNAL_ERROR", HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred."),
