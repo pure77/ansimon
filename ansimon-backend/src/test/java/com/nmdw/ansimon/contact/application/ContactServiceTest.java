@@ -155,14 +155,44 @@ class ContactServiceTest {
     @Test
     void reportsConflictWhenAConcurrentDuplicateHitsTheUniqueKey() {
         givenElderlyAndRiskSnapshotExist();
-        doThrow(new DataIntegrityViolationException("Duplicate entry 'call-abc-123' for key 'uk_contact_idempotency_key'"))
+        doThrow(constraintViolation("uk_contact_idempotency_key"))
                 .when(contactJobRepository).save(any(ContactJob.class));
+
+        assertThatThrownBy(() -> service.registerCallOutcome(request(answeredCall())))
+                .isInstanceOf(BusinessException.class)
+                .hasCauseInstanceOf(DataIntegrityViolationException.class)
+                .extracting(e -> ((BusinessException) e).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+        verify(callObservationRepository, never()).save(any());
+    }
+
+    @Test
+    void reportsConflictWhenTheDuplicateSurfacesOnFlush() {
+        givenElderlyAndRiskSnapshotExist();
+        doThrow(constraintViolation("uk_contact_idempotency_key"))
+                .when(contactJobRepository).flush();
 
         assertThatThrownBy(() -> service.registerCallOutcome(request(answeredCall())))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
         verify(callObservationRepository, never()).save(any());
+    }
+
+    @Test
+    void letsOtherConstraintViolationsPropagateUnchanged() {
+        givenElderlyAndRiskSnapshotExist();
+        DataIntegrityViolationException other = constraintViolation("fk_contact_job_elderly");
+        doThrow(other).when(contactJobRepository).save(any(ContactJob.class));
+
+        assertThatThrownBy(() -> service.registerCallOutcome(request(answeredCall())))
+                .isSameAs(other);
+    }
+
+    private static DataIntegrityViolationException constraintViolation(String constraintName) {
+        return new DataIntegrityViolationException("dup",
+                new org.hibernate.exception.ConstraintViolationException("dup", new java.sql.SQLException(),
+                        constraintName));
     }
 
     @Test

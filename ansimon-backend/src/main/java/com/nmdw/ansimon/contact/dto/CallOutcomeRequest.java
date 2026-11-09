@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -21,7 +22,7 @@ public record CallOutcomeRequest(
         @NotNull Long elderlyId,
 
         @Schema(description = "외부 서버가 부여한 통화 식별자. 중복 전송을 막는 멱등키로 사용합니다.", example = "call-abc-123", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank String externalCallId,
+        @NotBlank @Size(max = 160) String externalCallId,
 
         @Schema(description = "생성된 대응계획", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull @Valid Plan plan,

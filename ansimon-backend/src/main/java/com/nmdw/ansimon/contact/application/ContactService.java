@@ -18,6 +18,7 @@ import com.nmdw.ansimon.guidance.domain.InterventionPlan;
 import com.nmdw.ansimon.guidance.infra.InterventionPlanRepository;
 import com.nmdw.ansimon.risk.domain.RiskSnapshot;
 import com.nmdw.ansimon.risk.infra.RiskSnapshotRepository;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -38,6 +40,7 @@ import java.util.Map;
 @Transactional
 public class ContactService {
 
+    private static final String IDEMPOTENCY_KEY_CONSTRAINT = "uk_contact_idempotency_key";
     private static final String UNANSWERED_SUMMARY = "미응답으로 통화 내용이 없습니다.";
     private static final BigDecimal UNANSWERED_CONFIDENCE = new BigDecimal("0.0000");
 
@@ -85,7 +88,8 @@ public class ContactService {
 
     /**
      * 같은 통화 결과가 동시에 두 번 들어와 사전 중복 조회를 함께 통과하면, 두 번째 INSERT는 멱등 키 유니크 제약에 걸립니다.
-     * 이를 500으로 내보내지 않고 사전 조회와 같은 409로 바꿔, 호출한 서버가 "이미 처리됨"으로 판단할 수 있게 합니다.
+     * 이 멱등 키 제약 위반만 500으로 내보내지 않고 사전 조회와 같은 409로 바꿔, 호출한 서버가 "이미 처리됨"으로 판단할 수 있게 합니다.
+     * 다른 제약 위반(외래 키 등)은 진짜 오류이므로 원래 예외를 그대로 던집니다.
      * 예외가 나가면 트랜잭션이 롤백되어 먼저 저장한 안내계획도 남지 않습니다.
      */
     private ContactJob saveContactJob(ContactJob job) {
@@ -94,8 +98,22 @@ public class ContactService {
             contactJobRepository.flush();
             return saved;
         } catch (DataIntegrityViolationException exception) {
-            throw new BusinessException(ErrorCode.CONFLICT, exception);
+            if (violatesIdempotencyKey(exception)) {
+                throw new BusinessException(ErrorCode.CONFLICT, exception);
+            }
+            throw exception;
         }
+    }
+
+    private static boolean violatesIdempotencyKey(Throwable exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ConstraintViolationException violation
+                    && violation.getConstraintName() != null
+                    && violation.getConstraintName().toLowerCase(Locale.ROOT).contains(IDEMPOTENCY_KEY_CONSTRAINT)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
