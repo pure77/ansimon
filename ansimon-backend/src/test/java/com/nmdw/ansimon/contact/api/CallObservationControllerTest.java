@@ -14,7 +14,9 @@ import org.springframework.context.annotation.Import;
 import com.nmdw.ansimon.global.security.SecurityConfig;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -24,6 +26,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -46,7 +49,7 @@ class CallObservationControllerTest {
                 "복지사 확인 결과 이동 지원은 불필요함", null, new BigDecimal("0.9100"),
                 Instant.parse("2026-08-19T02:30:00Z")));
 
-        mockMvc.perform(patch("/api/v1/contact/observations/5")
+        mockMvc.perform(patch("/api/v1/contact/observations/5").with(admin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"summary\":\"복지사 확인 결과 이동 지원은 불필요함\",\"helpNeeded\":\"NO\"}"))
                 .andExpect(status().isOk())
@@ -60,7 +63,7 @@ class CallObservationControllerTest {
         when(callObservationService.update(eq(99L), any()))
                 .thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        mockMvc.perform(patch("/api/v1/contact/observations/99")
+        mockMvc.perform(patch("/api/v1/contact/observations/99").with(admin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"helpNeeded\":\"NO\"}"))
                 .andExpect(status().isNotFound())
@@ -69,7 +72,7 @@ class CallObservationControllerTest {
 
     @Test
     void deletesAStoredCallObservation() throws Exception {
-        mockMvc.perform(delete("/api/v1/contact/observations/5"))
+        mockMvc.perform(delete("/api/v1/contact/observations/5").with(admin()))
                 .andExpect(status().isNoContent());
 
         verify(callObservationService).delete(5L);
@@ -79,8 +82,12 @@ class CallObservationControllerTest {
     void reportsNotFoundWhenDeletingAnUnknownObservation() throws Exception {
         doThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND)).when(callObservationService).delete(99L);
 
-        mockMvc.perform(delete("/api/v1/contact/observations/99"))
+        mockMvc.perform(delete("/api/v1/contact/observations/99").with(admin()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    private static RequestPostProcessor admin() {
+        return jwt().authorities(new SimpleGrantedAuthority("SCOPE_admin"));
     }
 }
