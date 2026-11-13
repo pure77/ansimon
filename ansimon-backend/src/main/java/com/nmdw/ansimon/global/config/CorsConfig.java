@@ -10,8 +10,10 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * 관리자 프론트엔드가 다른 출처에서 외부 공개 API({@code /api/**})를 호출할 수 있도록 CORS 정책을 한곳에서 정의합니다.
- * 허용 출처는 {@link CorsProperties}가 설정에서 읽어오며, 이 소스는 공개 보안 체인에만 연결되어 {@code /internal/**}에는 적용되지 않습니다.
+ * 관리자 프론트엔드가 다른 출처에서 관리자 API({@code /api/**})를 호출할 수 있도록 CORS 정책을 한곳에서 정의합니다.
+ * 허용 출처는 {@link CorsProperties}가 설정에서 읽어오며, 이 소스는 관리자 보안 체인에만 연결됩니다.
+ * {@code /internal/**}은 브라우저가 부를 경로가 아니므로 CORS를 열지 않습니다. CORS는 브라우저가 응답을 읽는 것만 제한하므로
+ * 내부 API의 실제 차단은 {@code InternalApiKeyFilter}의 API 키 검사가 맡습니다.
  * 인증 쿠키를 쓰지 않으므로 자격 증명 전송은 허용하지 않습니다.
  */
 @Configuration

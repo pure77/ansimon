@@ -78,6 +78,17 @@ class ContactControllerTest {
     }
 
     @Test
+    void rejectsAnOutcomeWhoseExternalCallIdExceedsTheColumnLength() throws Exception {
+        mockMvc.perform(post("/internal/v1/contact/results")
+                        .header("Authorization", INTERNAL_AUTHORIZATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(ANSWERED_OUTCOME.replace("\"externalCallId\":\"call-abc-123\"",
+                                "\"externalCallId\":\"" + "x".repeat(161) + "\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("GLOBAL_VALIDATION_ERROR"));
+    }
+
+    @Test
     void rejectsAnOutcomeWithoutAPlan() throws Exception {
         mockMvc.perform(post("/internal/v1/contact/results")
                         .header("Authorization", INTERNAL_AUTHORIZATION)
